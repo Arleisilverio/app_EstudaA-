@@ -54,17 +54,16 @@ const ProfilePage = () => {
     try {
       setSaving(true);
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user?.id}-${Math.random()}.${fileExt}`;
+      // Organizando por ID de usuário para facilitar políticas de segurança futuramente
+      const fileName = `${user?.id}/${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Upload para o bucket 'avatars'
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // Pegar a URL pública
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
@@ -73,7 +72,7 @@ const ProfilePage = () => {
       showSuccess("Imagem carregada! Clique em salvar para confirmar.");
     } catch (err: any) {
       console.error(err);
-      showError("Erro ao subir imagem. Certifique-se que o bucket 'avatars' existe e é público.");
+      showError("Erro: Verifique se o bucket 'avatars' foi criado como PÚBLICO no Supabase.");
     } finally {
       setSaving(false);
     }
