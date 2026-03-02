@@ -47,6 +47,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
+    "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.3.0",
     "framer-motion": "^12.34.4",
     "input-otp": "^1.2.4",
@@ -67,7 +68,7 @@
   },
   "devDependencies": {
     "@dyad-sh/react-vite-component-tagger": "^0.8.0",
-    "@eslint/js": "^9.9.0",
+    "@eslint/js": "latest",
     "@tailwindcss/typography": "^0.5.15",
     "@types/node": "^22.5.5",
     "@types/react": "^18.3.1",
