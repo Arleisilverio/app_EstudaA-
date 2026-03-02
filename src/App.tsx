@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import StudyDashboard from "./pages/StudyDashboard";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
+import Exams from "./pages/Exams";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/study/:subjectId" element={<StudyDashboard />} />
           <Route path="/history" element={<History />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/exams" element={<Exams />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
