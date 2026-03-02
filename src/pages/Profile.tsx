@@ -1,27 +1,74 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Camera, Save, User, BookOpen, GraduationCap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Camera, Save, User, BookOpen, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import BottomNav from "@/components/BottomNav";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 
 const ProfilePage = () => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({
-    name: "Arlei Silverio",
-    course: "Direito",
-    period: "7º Período",
-    completionYear: "2026",
-    avatar: "https://github.com/shadcn.png"
+    name: "",
+    course: "",
+    period: "",
+    completion_year: "",
+    avatar_url: ""
   });
 
-  const handleSave = () => {
-    showSuccess("Perfil atualizado com sucesso!");
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      if (data) setProfile(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user?.id,
+          ...profile,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      showSuccess("Perfil atualizado com sucesso!");
+    } catch (err: any) {
+      showError("Erro ao salvar perfil");
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Carregando perfil...</div>;
 
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative pb-32">
@@ -31,15 +78,17 @@ const ProfilePage = () => {
         <div className="flex flex-col items-center mb-8 relative">
           <div className="relative group">
             <Avatar className="h-32 w-32 border-4 border-white dark:border-zinc-800 shadow-study">
-              <AvatarImage src={profile.avatar} />
-              <AvatarFallback className="bg-study-primary text-white text-3xl">AS</AvatarFallback>
+              <AvatarImage src={profile.avatar_url} />
+              <AvatarFallback className="bg-study-primary text-white text-3xl">
+                {profile.name?.substring(0, 2).toUpperCase() || "..."}
+              </AvatarFallback>
             </Avatar>
             <label className="absolute bottom-0 right-0 bg-study-primary text-white p-2 rounded-full cursor-pointer shadow-lg hover:bg-study-dark transition-colors">
               <Camera size={20} />
               <input type="file" className="hidden" accept="image/*" />
             </label>
           </div>
-          <p className="mt-4 text-study-medium font-medium dark:text-zinc-400">Toque para alterar a foto</p>
+          <p className="mt-4 text-study-medium font-medium dark:text-zinc-400">Dados vinculados ao e-mail: {user?.email}</p>
         </div>
 
         <div className="space-y-6">
@@ -55,9 +104,10 @@ const ProfilePage = () => {
                 <Label htmlFor="name" className="text-study-medium">Nome Visível</Label>
                 <Input 
                   id="name" 
-                  value={profile.name} 
+                  value={profile.name || ""} 
                   onChange={(e) => setProfile({...profile, name: e.target.value})}
                   className="rounded-xl border-study-light dark:border-zinc-800 bg-transparent"
+                  placeholder="Seu nome completo"
                 />
               </div>
 
@@ -67,9 +117,10 @@ const ProfilePage = () => {
                   <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 text-study-light" size={18} />
                   <Input 
                     id="course" 
-                    value={profile.course} 
+                    value={profile.course || ""} 
                     onChange={(e) => setProfile({...profile, course: e.target.value})}
                     className="pl-10 rounded-xl border-study-light dark:border-zinc-800 bg-transparent"
+                    placeholder="Ex: Direito, Medicina..."
                   />
                 </div>
               </div>
@@ -79,18 +130,20 @@ const ProfilePage = () => {
                   <Label htmlFor="period" className="text-study-medium">Turma/Período</Label>
                   <Input 
                     id="period" 
-                    value={profile.period} 
+                    value={profile.period || ""} 
                     onChange={(e) => setProfile({...profile, period: e.target.value})}
                     className="rounded-xl border-study-light dark:border-zinc-800 bg-transparent"
+                    placeholder="Ex: 7º Período"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="year" className="text-study-medium">Conclusão</Label>
                   <Input 
                     id="year" 
-                    value={profile.completionYear} 
-                    onChange={(e) => setProfile({...profile, completionYear: e.target.value})}
+                    value={profile.completion_year || ""} 
+                    onChange={(e) => setProfile({...profile, completion_year: e.target.value})}
                     className="rounded-xl border-study-light dark:border-zinc-800 bg-transparent"
+                    placeholder="Ex: 2026"
                   />
                 </div>
               </div>
@@ -99,9 +152,11 @@ const ProfilePage = () => {
 
           <Button 
             onClick={handleSave}
+            disabled={saving}
             className="w-full bg-study-primary hover:bg-study-dark text-white dark:text-zinc-900 rounded-2xl py-8 text-lg font-bold shadow-lg flex gap-2"
           >
-            <Save size={20} /> Salvar Alterações
+            {saving ? <Loader2 className="animate-spin" /> : <Save size={20} />} 
+            Salvar Alterações
           </Button>
         </div>
       </div>

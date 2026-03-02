@@ -1,23 +1,50 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
 
 const HomeHeader = () => {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('name, course, period, avatar_url')
+      .eq('id', user?.id)
+      .single();
+    
+    if (data) setProfile(data);
+  };
+
   return (
     <div className="flex items-center justify-between p-6 bg-white dark:bg-zinc-900 rounded-3xl shadow-study mx-4 mt-6 border border-study-light/10 dark:border-white/5 transition-colors">
       <div className="flex items-center gap-4">
         <div className="relative">
           <Avatar className="h-16 w-16 border-4 border-study-light dark:border-zinc-800 shadow-sm">
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback className="bg-study-primary text-white text-xl font-bold">AS</AvatarFallback>
+            <AvatarImage src={profile?.avatar_url} />
+            <AvatarFallback className="bg-study-primary text-white text-xl font-bold">
+              {profile?.name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
           </Avatar>
           <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-study-dark dark:text-white leading-none">Arlei Silverio</h2>
-          <p className="text-sm text-study-medium dark:text-zinc-400 font-medium mt-1">7º Período - Direito</p>
+          <h2 className="text-xl font-bold text-study-dark dark:text-white leading-none">
+            {profile?.name || "Estudante"}
+          </h2>
+          <p className="text-sm text-study-medium dark:text-zinc-400 font-medium mt-1">
+            {profile?.course ? `${profile.period || ''} - ${profile.course}` : user?.email}
+          </p>
           <div className="flex gap-1 mt-2">
             <div className="h-1 w-8 bg-study-primary rounded-full" />
             <div className="h-1 w-4 bg-study-light dark:bg-zinc-800 rounded-full" />
