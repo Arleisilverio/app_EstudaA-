@@ -17,7 +17,7 @@ const BottomNav = () => {
   const location = useLocation();
 
   return (
-    <div className="fixed bottom-6 left-4 right-4 h-20 bg-white rounded-[2rem] shadow-2xl flex items-center justify-around px-2 border border-study-light/20 z-50">
+    <div className="fixed bottom-6 left-4 right-4 h-20 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-lg rounded-[2rem] shadow-2xl flex items-center justify-around px-2 border border-study-light/20 dark:border-white/10 z-50 transition-colors">
       {items.map((item) => {
         const isActive = location.pathname === item.path;
         return (
@@ -26,7 +26,9 @@ const BottomNav = () => {
             to={item.path}
             className={cn(
               "flex flex-col items-center gap-1 transition-all duration-300 px-1 min-w-[64px]",
-              isActive ? "text-study-primary scale-110" : "text-gray-400 hover:text-study-medium"
+              isActive 
+                ? "text-study-primary scale-110" 
+                : "text-gray-400 dark:text-zinc-500 hover:text-study-medium dark:hover:text-zinc-300"
             )}
           >
             <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
