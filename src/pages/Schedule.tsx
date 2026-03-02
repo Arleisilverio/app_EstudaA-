@@ -1,20 +1,44 @@
 "use client";
 
 import React from 'react';
-import { CalendarDays, Clock } from 'lucide-react';
+import { CalendarDays, Clock, MapPin } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import BottomNav from "@/components/BottomNav";
 
-const scheduleData = [
+const weeklySchedule = [
   {
-    time: "08:20",
-    seg: { subject: "DIREITO SOCIETÁRIO" },
-    ter: { subject: "Direito Trabalho" },
-    qua: { subject: "Processual Civil III" },
-    qui: { subject: "Agentes Públicos" },
-    sex: { subject: "Direito Trabalho" },
+    day: "Segunda-feira",
+    subjects: [
+      { time: "08:20 - 10:00", name: "Direito Societário", room: "Sala 302", color: "bg-blue-500" },
+      { time: "10:15 - 12:00", name: "Processual Civil III", room: "Sala 302", color: "bg-indigo-500" },
+    ]
+  },
+  {
+    day: "Terça-feira",
+    subjects: [
+      { time: "08:20 - 10:00", name: "Direito do Trabalho", room: "Auditório B", color: "bg-cyan-500" },
+      { time: "10:15 - 12:00", name: "Filosofia Jurídica", room: "Sala 105", color: "bg-blue-600" },
+    ]
+  },
+  {
+    day: "Quarta-feira",
+    subjects: [
+      { time: "08:20 - 12:00", name: "Prática Jurídica I", room: "NPJ - Bloco C", color: "bg-violet-500" },
+    ]
+  },
+  {
+    day: "Quinta-feira",
+    subjects: [
+      { time: "08:20 - 10:00", name: "Agentes Públicos", room: "Sala 302", color: "bg-blue-400" },
+      { time: "10:15 - 12:00", name: "Direito Tributário", room: "Sala 302", color: "bg-indigo-400" },
+    ]
+  },
+  {
+    day: "Sexta-feira",
+    subjects: [
+      { time: "08:20 - 10:00", name: "Direito do Trabalho", room: "Auditório B", color: "bg-cyan-500" },
+      { time: "10:15 - 12:00", name: "Ética Profissional", room: "Sala 201", color: "bg-blue-700" },
+    ]
   }
 ];
 
@@ -28,45 +52,47 @@ const SchedulePage = () => {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-study-dark dark:text-white">Grade</h1>
-            <p className="text-study-medium text-sm font-medium">Horário Semestral</p>
+            <p className="text-study-medium text-sm font-medium">Horário Completo</p>
           </div>
         </div>
 
-        <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
-          <CardContent className="p-0">
-            <ScrollArea className="w-full">
-              <div className="min-w-[600px]">
-                <Table>
-                  <TableHeader className="bg-study-light/30 dark:bg-zinc-800/50">
-                    <TableRow className="border-study-light/30 dark:border-zinc-800">
-                      <TableHead className="font-bold text-study-primary">HORA</TableHead>
-                      <TableHead className="text-center">SEG</TableHead>
-                      <TableHead className="text-center">TER</TableHead>
-                      <TableHead className="text-center">QUA</TableHead>
-                      <TableHead className="text-center">QUI</TableHead>
-                      <TableHead className="text-center">SEX</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {scheduleData.map((row, idx) => (
-                      <TableRow key={idx} className="border-study-light/20 dark:border-zinc-800">
-                        <TableCell className="font-bold text-study-dark dark:text-zinc-200 bg-study-light/10 dark:bg-zinc-800/20">
-                          {row.time}
-                        </TableCell>
-                        {[row.seg, row.ter, row.qua, row.qui, row.sex].map((cell, i) => (
-                          <TableCell key={i} className="p-4 text-center">
-                            {cell && <span className="text-[10px] font-bold dark:text-zinc-400">{cell.subject}</span>}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+        <div className="space-y-8">
+          {weeklySchedule.map((dayPlan, idx) => (
+            <section key={idx} className="space-y-3">
+              <div className="flex items-center gap-2 ml-1">
+                <div className="w-2 h-2 rounded-full bg-study-primary" />
+                <h2 className="text-sm font-black text-study-dark dark:text-zinc-200 uppercase tracking-widest">
+                  {dayPlan.day}
+                </h2>
               </div>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
-          </CardContent>
-        </Card>
+              
+              <div className="grid gap-3">
+                {dayPlan.subjects.map((item, sIdx) => (
+                  <Card key={sIdx} className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[1.5rem] overflow-hidden">
+                    <CardContent className="p-0 flex h-20">
+                      <div className={`w-3 ${item.color}`} />
+                      <div className="flex-1 p-4 flex items-center justify-between">
+                        <div className="space-y-1">
+                          <h3 className="font-bold text-study-dark dark:text-zinc-100 text-sm">
+                            {item.name}
+                          </h3>
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-study-medium dark:text-zinc-400 uppercase">
+                              <Clock size={12} className="text-study-primary" /> {item.time}
+                            </span>
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-study-medium dark:text-zinc-400 uppercase">
+                              <MapPin size={12} className="text-study-primary" /> {item.room}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       </div>
 
       <BottomNav />
