@@ -47,6 +47,38 @@ const ProfilePage = () => {
     }
   };
 
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setSaving(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user?.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Upload para o bucket 'avatars'
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Pegar a URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setProfile({ ...profile, avatar_url: publicUrl });
+      showSuccess("Imagem carregada! Clique em salvar para confirmar.");
+    } catch (err: any) {
+      console.error(err);
+      showError("Erro ao subir imagem. Certifique-se que o bucket 'avatars' existe e é público.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -78,17 +110,25 @@ const ProfilePage = () => {
         <div className="flex flex-col items-center mb-8 relative">
           <div className="relative group">
             <Avatar className="h-32 w-32 border-4 border-white dark:border-zinc-800 shadow-study">
-              <AvatarImage src={profile.avatar_url} />
+              <AvatarImage src={profile.avatar_url} className="object-cover" />
               <AvatarFallback className="bg-study-primary text-white text-3xl">
                 {profile.name?.substring(0, 2).toUpperCase() || "..."}
               </AvatarFallback>
             </Avatar>
             <label className="absolute bottom-0 right-0 bg-study-primary text-white p-2 rounded-full cursor-pointer shadow-lg hover:bg-study-dark transition-colors">
               <Camera size={20} />
-              <input type="file" className="hidden" accept="image/*" />
+              <input 
+                type="file" 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleAvatarChange}
+                disabled={saving}
+              />
             </label>
           </div>
-          <p className="mt-4 text-study-medium font-medium dark:text-zinc-400">Dados vinculados ao e-mail: {user?.email}</p>
+          <p className="mt-4 text-study-medium font-medium dark:text-zinc-400 text-xs">
+            {user?.email}
+          </p>
         </div>
 
         <div className="space-y-6">
