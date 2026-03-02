@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
+import { toast } from "sonner";
 
 const ExamsPage = () => {
   const { isAdmin, user } = useAuth();
@@ -34,19 +35,13 @@ const ExamsPage = () => {
   }, []);
 
   const fetchExams = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('exams')
-        .select('*')
-        .order('date', { ascending: true });
-      
-      if (error) throw error;
-      setExams(data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    const { data, error } = await supabase
+      .from('exams')
+      .select('*')
+      .order('date', { ascending: true });
+    
+    if (!error) setExams(data || []);
+    setLoading(false);
   };
 
   const handleOpenDialog = (exam: any = null) => {
@@ -74,44 +69,47 @@ const ExamsPage = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!formData.subject || !formData.date || !formData.time) {
       showError("Preencha os campos obrigatórios");
       return;
     }
 
-    try {
-      if (editingExam) {
-        const { error } = await supabase
-          .from('exams')
-          .update(formData)
-          .eq('id', editingExam.id);
-        if (error) throw error;
-        showSuccess("Prova atualizada!");
-      } else {
-        const { error } = await supabase
-          .from('exams')
-          .insert([{ ...formData, user_id: user?.id }]);
-        if (error) throw error;
-        showSuccess("Prova adicionada!");
-      }
-      setIsDialogOpen(false);
-      fetchExams();
-    } catch (err) {
-      showError("Erro ao salvar dados");
-    }
+    setIsDialogOpen(false);
+
+    const saveFn = async () => {
+      const { error } = editingExam 
+        ? await supabase.from('exams').update(formData).eq('id', editingExam.id)
+        : await supabase.from('exams').insert([{ ...formData, user_id: user?.id }]);
+      if (error) throw error;
+    };
+
+    toast.promise(saveFn(), {
+      loading: 'Salvando prova...',
+      success: () => {
+        fetchExams();
+        return editingExam ? "Prova atualizada!" : "Prova adicionada!";
+      },
+      error: 'Erro ao salvar dados'
+    });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta prova?")) return;
-    try {
+  const handleDelete = (id: string) => {
+    if (!confirm("Excluir esta prova?")) return;
+    
+    const deleteFn = async () => {
       const { error } = await supabase.from('exams').delete().eq('id', id);
       if (error) throw error;
-      showSuccess("Prova excluída!");
-      fetchExams();
-    } catch (err) {
-      showError("Erro ao excluir");
-    }
+    };
+
+    toast.promise(deleteFn(), {
+      loading: 'Excluindo...',
+      success: () => {
+        fetchExams();
+        return "Prova excluída!";
+      },
+      error: 'Erro ao excluir'
+    });
   };
 
   return (

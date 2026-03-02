@@ -12,6 +12,7 @@ import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
+import { toast } from "sonner";
 
 const DAYS = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 const COLORS = [
@@ -42,19 +43,13 @@ const SchedulePage = () => {
   }, []);
 
   const fetchSchedule = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('schedule')
-        .select('*')
-        .order('start_time', { ascending: true });
-      
-      if (error) throw error;
-      setSchedule(data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    const { data, error } = await supabase
+      .from('schedule')
+      .select('*')
+      .order('start_time', { ascending: true });
+    
+    if (!error) setSchedule(data || []);
+    setLoading(false);
   };
 
   const handleOpenDialog = (item: any = null) => {
@@ -82,47 +77,49 @@ const SchedulePage = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!formData.subject_name || !formData.start_time || !formData.end_time) {
       showError("Preencha os campos obrigatórios");
       return;
     }
 
-    try {
-      if (editingItem) {
-        const { error } = await supabase
-          .from('schedule')
-          .update(formData)
-          .eq('id', editingItem.id);
-        if (error) throw error;
-        showSuccess("Grade atualizada!");
-      } else {
-        const { error } = await supabase
-          .from('schedule')
-          .insert([{ ...formData, user_id: user?.id }]);
-        if (error) throw error;
-        showSuccess("Matéria adicionada à grade!");
-      }
-      setIsDialogOpen(false);
-      fetchSchedule();
-    } catch (err) {
-      showError("Erro ao salvar dados");
-    }
+    setIsDialogOpen(false);
+
+    const saveFn = async () => {
+      const { error } = editingItem
+        ? await supabase.from('schedule').update(formData).eq('id', editingItem.id)
+        : await supabase.from('schedule').insert([{ ...formData, user_id: user?.id }]);
+      if (error) throw error;
+    };
+
+    toast.promise(saveFn(), {
+      loading: 'Atualizando grade...',
+      success: () => {
+        fetchSchedule();
+        return editingItem ? "Grade atualizada!" : "Aula adicionada!";
+      },
+      error: 'Erro ao salvar dados'
+    });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Remover esta matéria da grade?")) return;
-    try {
+  const handleDelete = (id: string) => {
+    if (!confirm("Remover da grade?")) return;
+    
+    const deleteFn = async () => {
       const { error } = await supabase.from('schedule').delete().eq('id', id);
       if (error) throw error;
-      showSuccess("Item removido!");
-      fetchSchedule();
-    } catch (err) {
-      showError("Erro ao excluir");
-    }
+    };
+
+    toast.promise(deleteFn(), {
+      loading: 'Removendo...',
+      success: () => {
+        fetchSchedule();
+        return "Item removido!";
+      },
+      error: 'Erro ao excluir'
+    });
   };
 
-  // Agrupar por dia
   const groupedSchedule = DAYS.map(day => ({
     day,
     items: schedule.filter(s => s.day_of_week === day)

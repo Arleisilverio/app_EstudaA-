@@ -11,6 +11,7 @@ import BottomNav from "@/components/BottomNav";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { toast } from "sonner";
 
 const ProfilePage = () => {
   const { user } = useAuth();
@@ -25,62 +26,55 @@ const ProfilePage = () => {
   });
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
+    if (user) fetchProfile();
   }, [user]);
 
   const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user?.id)
+      .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
-      if (data) setProfile(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    if (data) setProfile(data);
+    setLoading(false);
   };
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    try {
-      setSaving(true);
-      const fileExt = file.name.split('.').pop();
-      // Organizando por ID de usuário para facilitar políticas de segurança futuramente
-      const fileName = `${user?.id}/${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+    setSaving(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user?.id}/${Math.random()}.${fileExt}`;
+    const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
+    const uploadFn = async () => {
+      const { error } = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
+      if (error) throw error;
+    };
 
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      setProfile({ ...profile, avatar_url: publicUrl });
-      showSuccess("Imagem carregada! Clique em salvar para confirmar.");
-    } catch (err: any) {
-      console.error(err);
-      showError("Erro: Verifique se o bucket 'avatars' foi criado como PÚBLICO no Supabase.");
-    } finally {
-      setSaving(false);
-    }
+    toast.promise(uploadFn(), {
+      loading: 'Enviando imagem...',
+      success: () => {
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        setProfile({ ...profile, avatar_url: publicUrl });
+        setSaving(false);
+        return "Imagem carregada!";
+      },
+      error: () => {
+        setSaving(false);
+        return "Erro ao subir imagem.";
+      }
+    });
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setSaving(true);
-    try {
+    
+    const saveFn = async () => {
       const { error } = await supabase
         .from('profiles')
         .upsert({
@@ -88,15 +82,20 @@ const ProfilePage = () => {
           ...profile,
           updated_at: new Date().toISOString()
         });
-
       if (error) throw error;
-      showSuccess("Perfil atualizado com sucesso!");
-    } catch (err: any) {
-      showError("Erro ao salvar perfil");
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
+    };
+
+    toast.promise(saveFn(), {
+      loading: 'Salvando perfil...',
+      success: () => {
+        setSaving(false);
+        return "Perfil atualizado!";
+      },
+      error: () => {
+        setSaving(false);
+        return "Erro ao salvar.";
+      }
+    });
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Carregando perfil...</div>;
