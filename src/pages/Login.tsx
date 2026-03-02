@@ -43,8 +43,8 @@ const LoginPage = () => {
                     inputBorderHover: 'hsl(221.2, 83.2%, 53.3%)',
                   },
                   radii: {
-                    buttonRadius: '1rem',
-                    inputRadius: '1rem',
+                    buttonBorderRadius: '1rem',
+                    inputBorderRadius: '1rem',
                   }
                 },
               },
@@ -54,20 +54,40 @@ const LoginPage = () => {
                 sign_up: {
                   email_label: 'Endereço de e-mail',
                   password_label: 'Crie uma senha',
+                  email_input_placeholder: 'Seu melhor e-mail',
+                  password_input_placeholder: 'Mínimo 6 caracteres',
                   button_label: 'Criar conta gratuita',
                   loading_button_label: 'Criando conta...',
                   social_provider_text: 'Entrar com {{provider}}',
-                  link_text: 'Não tem uma conta? Cadastre-se',
+                  link_text: 'Não tem uma conta? Cadastre-se agora',
                   confirmation_text: 'Verifique seu e-mail para confirmar o cadastro',
                 },
                 sign_in: {
                   email_label: 'E-mail',
                   password_label: 'Sua senha',
+                  email_input_placeholder: 'seu@email.com',
+                  password_input_placeholder: 'Sua senha secreta',
                   button_label: 'Entrar no aplicativo',
                   loading_button_label: 'Entrando...',
                   social_provider_text: 'Entrar com {{provider}}',
-                  link_text: 'Já tem uma conta? Entre aqui',
+                  link_text: 'Já tem uma conta? Faça login',
                 },
+                forgotten_password: {
+                  email_label: 'E-mail',
+                  password_label: 'Senha',
+                  email_input_placeholder: 'seu@email.com',
+                  button_label: 'Enviar instruções de recuperação',
+                  loading_button_label: 'Enviando instruções...',
+                  link_text: 'Esqueceu sua senha?',
+                  confirmation_text: 'Verifique seu e-mail para o link de recuperação',
+                },
+                update_password: {
+                  password_label: 'Nova senha',
+                  password_input_placeholder: 'Sua nova senha',
+                  button_label: 'Atualizar senha',
+                  loading_button_label: 'Atualizando...',
+                  confirmation_text: 'Sua senha foi atualizada com sucesso',
+                }
               },
             }}
             theme="light"
