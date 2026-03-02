@@ -12,7 +12,7 @@ const PromoBanner = () => {
         alt="Estudo" 
         className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-study-dark/80 via-study-dark/40 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-blue-900/40 to-transparent dark:from-black/80 dark:via-black/40" />
       
       <div className="absolute inset-0 p-8 flex flex-col justify-center">
         <h1 className="text-4xl font-light text-white leading-tight">
@@ -20,7 +20,7 @@ const PromoBanner = () => {
         </h1>
         <p className="text-white/90 text-lg mt-1 font-medium italic">Nova Prova Disponível!</p>
         
-        <Button className="mt-4 w-fit bg-study-primary hover:bg-study-dark text-white rounded-full px-6 py-5 gap-2 shadow-lg transition-all active:scale-95">
+        <Button className="mt-4 w-fit bg-study-primary hover:bg-blue-700 text-white rounded-full px-6 py-5 gap-2 shadow-lg transition-all active:scale-95">
           Acesse Agora <ArrowRight size={18} />
         </Button>
       </div>

@@ -4,79 +4,79 @@
 
 @layer base {
   :root {
-    --background: 35 44% 96%; /* #FAF6F1 */
-    --foreground: 20 28% 19%; /* #3E2C23 */
+    --background: 210 20% 98%; /* Cinza azulado muito claro */
+    --foreground: 222 47% 11%; 
     
     --card: 0 0% 100%;
-    --card-foreground: 20 28% 19%;
+    --card-foreground: 222 47% 11%;
  
-    --popover: 35 44% 96%;
-    --popover-foreground: 20 28% 19%;
+    --popover: 210 20% 98%;
+    --popover-foreground: 222 47% 11%;
  
-    --primary: 25 39% 39%; /* #8B5E3C */
-    --primary-foreground: 35 44% 96%;
+    --primary: 221.2 83.2% 53.3%; /* Azul Safira */
+    --primary-foreground: 210 40% 98%;
  
-    --secondary: 29 34% 49%; /* #A67C52 */
-    --secondary-foreground: 35 44% 96%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
  
-    --muted: 33 46% 91%;
-    --muted-foreground: 29 34% 49%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
  
-    --accent: 33 46% 91%;
-    --accent-foreground: 25 39% 39%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
  
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 33 46% 91%;
-    --input: 33 46% 91%;
-    --ring: 25 39% 39%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
  
     --radius: 1rem;
 
-    /* Custom Study Variables */
-    --study-primary: 25 39% 39%;
-    --study-medium: 29 34% 49%;
-    --study-light: 33 46% 91%;
-    --study-background: 35 44% 96%;
-    --study-dark: 20 28% 19%;
+    /* Variáveis Customizadas (Azul) */
+    --study-primary: 221.2 83.2% 53.3%;
+    --study-medium: 215.4 16.3% 46.9%;
+    --study-light: 214.3 31.8% 91.4%;
+    --study-background: 210 20% 98%;
+    --study-dark: 222 47% 11%;
   }
  
   .dark {
-    --background: 20 28% 4%; /* Quase preto mas com tom quente */
-    --foreground: 35 44% 92%;
+    --background: 222 47% 4%; /* Preto Azulado Profundo */
+    --foreground: 210 40% 98%;
  
-    --card: 20 28% 7%;
-    --card-foreground: 35 44% 92%;
+    --card: 222 47% 6%;
+    --card-foreground: 210 40% 98%;
  
-    --popover: 20 28% 4%;
-    --popover-foreground: 35 44% 92%;
+    --popover: 222 47% 4%;
+    --popover-foreground: 210 40% 98%;
  
-    --primary: 25 45% 60%; /* Marrom mais vibrante/acobreado para escuro */
-    --primary-foreground: 35 44% 10%;
+    --primary: 217.2 91.2% 59.8%; /* Azul mais vibrante para o escuro */
+    --primary-foreground: 222.2 47.4% 11.2%;
  
-    --secondary: 29 35% 45%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
  
-    --muted: 20 20% 15%;
-    --muted-foreground: 35 15% 70%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
  
-    --accent: 25 39% 25%;
-    --accent-foreground: 35 44% 92%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
  
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 40% 98%;
  
-    --border: 20 20% 15%;
-    --input: 20 20% 15%;
-    --ring: 25 45% 60%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
 
-    /* Custom Study Variables for Dark Mode */
-    --study-primary: 25 45% 60%;
-    --study-medium: 35 15% 70%;
-    --study-light: 20 20% 18%;
-    --study-background: 20 28% 4%;
-    --study-dark: 0 0% 100%;
+    /* Variáveis Customizadas Dark (Azul) */
+    --study-primary: 217.2 91.2% 59.8%;
+    --study-medium: 215 20.2% 65.1%;
+    --study-light: 217.2 32.6% 17.5%;
+    --study-background: 222 47% 4%;
+    --study-dark: 210 40% 98%;
   }
 }
 
