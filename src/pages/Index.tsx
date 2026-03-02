@@ -1,32 +1,28 @@
 "use client";
 
 import React from 'react';
-import Navbar from "@/components/Navbar";
-import FileSidebar from "@/components/FileSidebar";
-import ChatArea from "@/components/ChatArea";
-import { MadeWithDyad } from "@/components/made-with-dyad";
+import HomeHeader from "@/components/HomeHeader";
+import PromoBanner from "@/components/PromoBanner";
+import SubjectGrid from "@/components/SubjectGrid";
+import BottomNav from "@/components/BottomNav";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
+    <div className="min-h-screen bg-[#FAF6F1] flex flex-col max-w-md mx-auto relative overflow-x-hidden">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-study-light/30 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+      <div className="absolute bottom-40 left-0 w-48 h-48 bg-study-primary/5 rounded-full -translate-x-1/2 blur-2xl" />
       
-      <main className="container flex-1 py-8 flex flex-col lg:flex-row gap-10">
-        <aside className="w-full lg:w-auto">
-          <FileSidebar />
-        </aside>
+      <div className="relative z-10 flex flex-col h-full">
+        <HomeHeader />
         
-        <section className="flex-1">
-          <ChatArea />
-        </section>
-      </main>
-      
-      <footer className="py-6 border-t bg-white/50">
-        <div className="container flex flex-col items-center gap-2">
-          <p className="text-xs text-study-medium">© 2024 Estuda AÍ - Seu assistente acadêmico inteligente</p>
-          <MadeWithDyad />
+        <div className="flex-1">
+          <PromoBanner />
+          <SubjectGrid />
         </div>
-      </footer>
+      </div>
+
+      <BottomNav />
     </div>
   );
 };
