@@ -4,9 +4,9 @@ import React from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
-import { Bird } from 'lucide-react';
+import { Bird, ShieldCheck } from 'lucide-react';
 
 const LoginPage = () => {
   const { session, loading } = useAuth();
@@ -93,6 +93,16 @@ const LoginPage = () => {
             theme="light"
             providers={[]}
           />
+          
+          <div className="mt-8 pt-6 border-t border-study-light/20 dark:border-white/5 text-center">
+            <Link 
+              to="/terms" 
+              className="inline-flex items-center gap-2 text-xs font-bold text-study-medium hover:text-study-primary transition-colors uppercase tracking-widest"
+            >
+              <ShieldCheck size={14} />
+              Termos de Uso e Privacidade
+            </Link>
+          </div>
         </div>
       </div>
     </div>
