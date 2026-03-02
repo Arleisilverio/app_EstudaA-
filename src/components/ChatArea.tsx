@@ -49,28 +49,28 @@ const ChatArea = () => {
         <Button 
           variant="outline" 
           onClick={() => handleQuickAction("Gere um resumo detalhado dos meus documentos")}
-          className="h-auto py-4 rounded-2xl border-study-primary/20 bg-study-primary/5 hover:bg-study-primary/10 flex items-center gap-3 group transition-all"
+          className="h-auto py-4 rounded-2xl border-study-primary/20 bg-study-primary/5 hover:bg-study-primary/10 dark:bg-zinc-900/40 dark:border-zinc-800 flex items-center gap-3 group transition-all"
         >
           <div className="bg-study-primary p-2 rounded-xl text-white">
             <BookOpen size={18} />
           </div>
           <div className="text-left">
             <p className="font-bold text-study-dark dark:text-zinc-100 text-sm">Gerar Resumo</p>
-            <p className="text-[10px] text-study-medium dark:text-zinc-400">Síntese inteligente</p>
+            <p className="text-[10px] text-study-medium dark:text-zinc-500">Síntese inteligente</p>
           </div>
         </Button>
 
         <Button 
           variant="outline" 
           onClick={() => handleQuickAction("Gere um simulado com 10 questões sobre este conteúdo")}
-          className="h-auto py-4 rounded-2xl border-study-primary/20 bg-study-primary/5 hover:bg-study-primary/10 flex items-center gap-3 group transition-all"
+          className="h-auto py-4 rounded-2xl border-study-primary/20 bg-study-primary/5 hover:bg-study-primary/10 dark:bg-zinc-900/40 dark:border-zinc-800 flex items-center gap-3 group transition-all"
         >
           <div className="bg-study-primary p-2 rounded-xl text-white">
             <GraduationCap size={18} />
           </div>
           <div className="text-left">
             <p className="font-bold text-study-dark dark:text-zinc-100 text-sm">Gerar Simulado</p>
-            <p className="text-[10px] text-study-medium dark:text-zinc-400">Teste seus conhecimentos</p>
+            <p className="text-[10px] text-study-medium dark:text-zinc-500">Teste seus conhecimentos</p>
           </div>
         </Button>
       </div>
@@ -107,7 +107,7 @@ const ChatArea = () => {
               <Loader2 className="animate-spin text-study-primary" size={48} />
               <Sparkles className="absolute top-0 right-0 text-study-medium animate-pulse" size={16} />
             </div>
-            <p className="text-study-medium font-medium animate-pulse">Analisando documentos e gerando resposta...</p>
+            <p className="text-study-medium font-medium animate-pulse dark:text-zinc-400">Analisando documentos e gerando resposta...</p>
           </motion.div>
         )}
 
@@ -134,7 +134,7 @@ const ChatArea = () => {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {response.sources.map((source, i) => (
-                      <span key={i} className="px-3 py-1 rounded-full bg-study-light/30 dark:bg-zinc-800 text-study-primary text-xs font-medium border border-study-light/50 dark:border-zinc-700">
+                      <span key={i} className="px-3 py-1 rounded-full bg-study-light/30 dark:bg-zinc-800/50 text-study-primary text-xs font-medium border border-study-light/50 dark:border-zinc-700">
                         {source}
                       </span>
                     ))}
@@ -144,31 +144,31 @@ const ChatArea = () => {
             </Card>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Button variant="outline" className="h-auto py-4 rounded-xl border-study-light dark:border-zinc-800 hover:bg-study-light/20 flex flex-col gap-2 group transition-all">
+              <Button variant="outline" className="h-auto py-4 rounded-xl border-study-light dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-study-light/20 dark:hover:bg-zinc-800 flex flex-col gap-2 group transition-all">
                 <div className="bg-study-light dark:bg-zinc-800 p-2 rounded-lg group-hover:bg-white dark:group-hover:bg-zinc-700 transition-colors">
                   <BookOpen size={20} className="text-study-primary" />
                 </div>
                 <div className="text-center">
                   <p className="font-bold text-study-dark dark:text-zinc-200 text-sm">Novo Resumo</p>
-                  <p className="text-[10px] text-study-medium">Refinar contexto</p>
+                  <p className="text-[10px] text-study-medium dark:text-zinc-500">Refinar contexto</p>
                 </div>
               </Button>
-              <Button variant="outline" className="h-auto py-4 rounded-xl border-study-light dark:border-zinc-800 hover:bg-study-light/20 flex flex-col gap-2 group transition-all">
+              <Button variant="outline" className="h-auto py-4 rounded-xl border-study-light dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-study-light/20 dark:hover:bg-zinc-800 flex flex-col gap-2 group transition-all">
                 <div className="bg-study-light dark:bg-zinc-800 p-2 rounded-lg group-hover:bg-white dark:group-hover:bg-zinc-700 transition-colors">
                   <ListChecks size={20} className="text-study-primary" />
                 </div>
                 <div className="text-center">
                   <p className="font-bold text-study-dark dark:text-zinc-200 text-sm">Criar Questões</p>
-                  <p className="text-[10px] text-study-medium">5-10 perguntas</p>
+                  <p className="text-[10px] text-study-medium dark:text-zinc-500">5-10 perguntas</p>
                 </div>
               </Button>
-              <Button variant="outline" className="h-auto py-4 rounded-xl border-study-light dark:border-zinc-800 hover:bg-study-light/20 flex flex-col gap-2 group transition-all">
+              <Button variant="outline" className="h-auto py-4 rounded-xl border-study-light dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-study-light/20 dark:hover:bg-zinc-800 flex flex-col gap-2 group transition-all">
                 <div className="bg-study-light dark:bg-zinc-800 p-2 rounded-lg group-hover:bg-white dark:group-hover:bg-zinc-700 transition-colors">
                   <GraduationCap size={20} className="text-study-primary" />
                 </div>
                 <div className="text-center">
                   <p className="font-bold text-study-dark dark:text-zinc-200 text-sm">Simulado</p>
-                  <p className="text-[10px] text-study-medium">Teste completo</p>
+                  <p className="text-[10px] text-study-medium dark:text-zinc-500">Teste completo</p>
                 </div>
               </Button>
             </div>
@@ -182,10 +182,10 @@ const ChatArea = () => {
             className="flex flex-col items-center justify-center py-20 text-center opacity-40"
           >
             <div className="bg-study-light/50 dark:bg-zinc-800 p-6 rounded-full mb-4">
-              <BookOpen size={48} className="text-study-medium" />
+              <BookOpen size={48} className="text-study-medium dark:text-zinc-400" />
             </div>
             <p className="text-lg font-medium text-study-dark dark:text-zinc-300">Pronto para começar!</p>
-            <p className="text-sm text-study-medium">Seus arquivos já estão indexados na base.</p>
+            <p className="text-sm text-study-medium dark:text-zinc-500">Seus arquivos já estão indexados na base.</p>
           </motion.div>
         )}
       </AnimatePresence>
