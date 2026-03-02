@@ -11,32 +11,32 @@ const scheduleData = [
   {
     time: "08:20",
     seg: { subject: "DIREITO SOCIETÁRIO", professor: "WILIAN ROQUE BORGES" },
-    ter: { subject: "Direito Individual e Coletivo do Trabalho", professor: "RAFAEL CARMEZIM NASSIF" },
-    qua: null,
-    qui: { subject: "Agentes Públicos e Responsabilização Administrativ", professor: "PAOLA NERY FERRARI" },
-    sex: { subject: "Direito Individual e Coletivo do Trabalho", professor: "RAFAEL CARMEZIM NASSIF" },
+    ter: { subject: "Dir. Individual e Coletivo do Trabalho", professor: "RAFAEL CARMEZIM NASSIF" },
+    qua: { subject: "Direito Processual Civil III", professor: "FABIO ALMEIDA" },
+    qui: { subject: "Agentes Públicos e Responsabilização", professor: "PAOLA NERY FERRARI" },
+    sex: { subject: "Dir. Individual e Coletivo do Trabalho", professor: "RAFAEL CARMEZIM NASSIF" },
   },
   {
     time: "09:10",
     seg: { subject: "DIREITO SOCIETÁRIO", professor: "WILIAN ROQUE BORGES" },
-    ter: { subject: "Direito Individual e Coletivo do Trabalho", professor: "RAFAEL CARMEZIM NASSIF" },
-    qua: null,
-    qui: { subject: "Agentes Públicos e Responsabilização Administrativ", professor: "PAOLA NERY FERRARI" },
-    sex: { subject: "Direito Individual e Coletivo do Trabalho", professor: "RAFAEL CARMEZIM NASSIF" },
+    ter: { subject: "Dir. Individual e Coletivo do Trabalho", professor: "RAFAEL CARMEZIM NASSIF" },
+    qua: { subject: "Direito Processual Civil III", professor: "FABIO ALMEIDA" },
+    qui: { subject: "Agentes Públicos e Responsabilização", professor: "PAOLA NERY FERRARI" },
+    sex: { subject: "Dir. Individual e Coletivo do Trabalho", professor: "RAFAEL CARMEZIM NASSIF" },
   },
   {
     time: "10:20",
     seg: { subject: "Procedimentos nos Tribunais", professor: "CAROLINA BELOMO DE SOUZA" },
-    ter: null,
-    qua: null,
+    ter: { subject: "Ética e Estatuto da OAB", professor: "MARCOS VINICIUS" },
+    qua: { subject: "Prática Jurídica Cível I", professor: "LUCIANA MENDES" },
     qui: { subject: "Procedimentos nos Tribunais", professor: "CAROLINA BELOMO DE SOUZA" },
     sex: { subject: "Desenv. Socioem. e de Carreira", professor: "EUGENIO PEREIRA DE PAULA JUNIOR" },
   },
   {
     time: "11:10",
     seg: { subject: "Procedimentos nos Tribunais", professor: "CAROLINA BELOMO DE SOUZA" },
-    ter: null,
-    qua: null,
+    ter: { subject: "Ética e Estatuto da OAB", professor: "MARCOS VINICIUS" },
+    qua: { subject: "Prática Jurídica Cível I", professor: "LUCIANA MENDES" },
     qui: { subject: "Procedimentos nos Tribunais", professor: "CAROLINA BELOMO DE SOUZA" },
     sex: { subject: "Desenv. Socioem. e de Carreira", professor: "EUGENIO PEREIRA DE PAULA JUNIOR" },
   }
@@ -63,12 +63,11 @@ const SchedulePage = () => {
                 <TableHeader className="bg-study-light/30">
                   <TableRow className="hover:bg-transparent border-study-light/30">
                     <TableHead className="w-[80px] font-bold text-study-primary text-center">HORA</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center">SEG</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center">TER</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center">QUA</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center">QUI</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center">SEX</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center">SÁB</TableHead>
+                    <TableHead className="font-bold text-study-primary text-center min-w-[140px]">SEG</TableHead>
+                    <TableHead className="font-bold text-study-primary text-center min-w-[140px]">TER</TableHead>
+                    <TableHead className="font-bold text-study-primary text-center min-w-[140px]">QUA</TableHead>
+                    <TableHead className="font-bold text-study-primary text-center min-w-[140px]">QUI</TableHead>
+                    <TableHead className="font-bold text-study-primary text-center min-w-[140px]">SEX</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -80,8 +79,8 @@ const SchedulePage = () => {
                           {row.time}
                         </div>
                       </TableCell>
-                      {[row.seg, row.ter, row.qua, row.qui, row.sex, null].map((cell, i) => (
-                        <TableCell key={i} className="min-w-[140px] p-4 align-top">
+                      {[row.seg, row.ter, row.qua, row.qui, row.sex].map((cell, i) => (
+                        <TableCell key={i} className="p-4 align-top">
                           {cell ? (
                             <div className="flex flex-col gap-2">
                               <span className="text-[11px] font-black text-study-dark uppercase leading-tight">
