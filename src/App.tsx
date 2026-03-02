@@ -11,13 +11,14 @@ import Profile from "./pages/Profile";
 import Exams from "./pages/Exams";
 import Schedule from "./pages/Schedule";
 import Settings from "./pages/Settings";
+import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="light" storageKey="study-ai-theme">
+    <ThemeProvider defaultTheme="light" storageKey="study-ai-theme" attribute="class">
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/exams" element={<Exams />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
