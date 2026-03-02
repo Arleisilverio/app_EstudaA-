@@ -19,14 +19,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import BottomNav from "@/components/BottomNav";
 import { showError, showSuccess } from "@/utils/toast";
+import { useAuth } from '@/components/AuthProvider';
 
 const SettingsPage = () => {
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
-  const handleLogout = () => {
-    showSuccess("Saindo da conta...");
-    setTimeout(() => navigate("/"), 1500);
+  const handleLogout = async () => {
+    try {
+      showSuccess("Saindo da conta...");
+      await signOut();
+      navigate("/login");
+    } catch (error) {
+      showError("Erro ao sair da conta");
+    }
   };
 
   return (
