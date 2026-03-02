@@ -58,57 +58,60 @@ const SchedulePage = () => {
 
         <Card className="border-none shadow-study bg-white rounded-3xl overflow-hidden">
           <CardContent className="p-0">
-            <ScrollArea className="w-full">
-              <Table>
-                <TableHeader className="bg-study-light/30">
-                  <TableRow className="hover:bg-transparent border-study-light/30">
-                    <TableHead className="w-[80px] font-bold text-study-primary text-center">HORA</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center min-w-[140px]">SEG</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center min-w-[140px]">TER</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center min-w-[140px]">QUA</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center min-w-[140px]">QUI</TableHead>
-                    <TableHead className="font-bold text-study-primary text-center min-w-[140px]">SEX</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {scheduleData.map((row, idx) => (
-                    <TableRow key={idx} className="border-study-light/20 hover:bg-study-light/5">
-                      <TableCell className="font-bold text-study-dark text-center bg-study-light/10">
-                        <div className="flex flex-col items-center gap-1">
-                          <Clock size={12} className="text-study-medium" />
-                          {row.time}
-                        </div>
-                      </TableCell>
-                      {[row.seg, row.ter, row.qua, row.qui, row.sex].map((cell, i) => (
-                        <TableCell key={i} className="p-4 align-top">
-                          {cell ? (
-                            <div className="flex flex-col gap-2">
-                              <span className="text-[11px] font-black text-study-dark uppercase leading-tight">
-                                {cell.subject}
-                              </span>
-                              <span className="text-[9px] font-medium text-study-medium uppercase">
-                                {cell.professor}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center">
-                              <div className="w-1 h-1 bg-study-light rounded-full" />
-                            </div>
-                          )}
-                        </TableCell>
-                      ))}
+            {/* ScrollArea com largura total e rolagem lateral ativada */}
+            <ScrollArea className="w-full whitespace-nowrap">
+              <div className="min-w-[800px]"> {/* Força a largura para garantir o scroll */}
+                <Table>
+                  <TableHeader className="bg-study-light/30">
+                    <TableRow className="hover:bg-transparent border-study-light/30">
+                      <TableHead className="w-[80px] font-bold text-study-primary text-center">HORA</TableHead>
+                      <TableHead className="font-bold text-study-primary text-center">SEG</TableHead>
+                      <TableHead className="font-bold text-study-primary text-center">TER</TableHead>
+                      <TableHead className="font-bold text-study-primary text-center">QUA</TableHead>
+                      <TableHead className="font-bold text-study-primary text-center">QUI</TableHead>
+                      <TableHead className="font-bold text-study-primary text-center">SEX</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <ScrollBar orientation="horizontal" />
+                  </TableHeader>
+                  <TableBody>
+                    {scheduleData.map((row, idx) => (
+                      <TableRow key={idx} className="border-study-light/20 hover:bg-study-light/5">
+                        <TableCell className="font-bold text-study-dark text-center bg-study-light/10">
+                          <div className="flex flex-col items-center gap-1">
+                            <Clock size={12} className="text-study-medium" />
+                            {row.time}
+                          </div>
+                        </TableCell>
+                        {[row.seg, row.ter, row.qua, row.qui, row.sex].map((cell, i) => (
+                          <TableCell key={i} className="p-4 align-top border-l border-study-light/10">
+                            {cell ? (
+                              <div className="flex flex-col gap-1 whitespace-normal">
+                                <span className="text-[11px] font-black text-study-dark uppercase leading-tight">
+                                  {cell.subject}
+                                </span>
+                                <span className="text-[9px] font-medium text-study-medium uppercase">
+                                  {cell.professor}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center">
+                                <div className="w-1 h-1 bg-study-light rounded-full" />
+                              </div>
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <ScrollBar orientation="horizontal" className="bg-study-light/20" />
             </ScrollArea>
           </CardContent>
         </Card>
 
         <div className="mt-6 flex gap-2 items-center justify-center p-4 bg-study-light/10 rounded-2xl border border-study-light/20">
           <div className="w-2 h-2 bg-study-primary rounded-full animate-pulse" />
-          <p className="text-[10px] font-bold text-study-medium uppercase tracking-widest">Semestre Atual: 2024.1</p>
+          <p className="text-[10px] font-bold text-study-medium uppercase tracking-widest">Deslize para o lado para ver a grade completa</p>
         </div>
       </div>
 
