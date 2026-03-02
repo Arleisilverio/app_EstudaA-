@@ -16,7 +16,7 @@ type AuthContextType = {
 };
 
 const TECH_ADMIN_EMAIL = 'arlei85@hotmail.com';
-const CONTENT_ADMIN_EMAIL = 'arleisilcerio41@gmail.com';
+const CONTENT_ADMIN_EMAIL = 'arleisilverio41@gmail.com';
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
