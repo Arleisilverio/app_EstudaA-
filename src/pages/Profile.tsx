@@ -42,31 +42,46 @@ const ProfilePage = () => {
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
 
     setSaving(true);
     const fileExt = file.name.split('.').pop();
-    const fileName = `${user?.id}/${Math.random()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+    const filePath = fileName;
 
     const uploadFn = async () => {
-      const { error } = await supabase.storage
+      // 1. Sobe para o Storage
+      const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file);
-      if (error) throw error;
+        .upload(filePath, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+
+      // 2. Pega a URL pública
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      
+      // 3. Salva no perfil imediatamente para persistir
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+      
+      return publicUrl;
     };
 
     toast.promise(uploadFn(), {
       loading: 'Enviando imagem...',
-      success: () => {
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-        setProfile({ ...profile, avatar_url: publicUrl });
+      success: (url) => {
+        setProfile(prev => ({ ...prev, avatar_url: url }));
         setSaving(false);
-        return "Imagem carregada!";
+        return "Foto atualizada com sucesso!";
       },
-      error: () => {
+      error: (err) => {
         setSaving(false);
-        return "Erro ao subir imagem.";
+        console.error(err);
+        return "Erro ao subir imagem. Verifique se o bucket 'avatars' é público.";
       }
     });
   };
@@ -107,13 +122,13 @@ const ProfilePage = () => {
         
         <div className="flex flex-col items-center mb-8 relative">
           <div className="relative group">
-            <Avatar className="h-32 w-32 border-4 border-white dark:border-zinc-800 shadow-study">
-              <AvatarImage src={profile.avatar_url} className="object-cover" />
+            <Avatar className="h-32 w-32 border-4 border-white dark:border-zinc-800 shadow-study overflow-hidden">
+              <AvatarImage src={profile.avatar_url} className="object-cover w-full h-full" />
               <AvatarFallback className="bg-study-primary text-white text-3xl">
-                {profile.name?.substring(0, 2).toUpperCase() || "..."}
+                {profile.name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <label className="absolute bottom-0 right-0 bg-study-primary text-white p-2 rounded-full cursor-pointer shadow-lg hover:bg-study-dark transition-colors">
+            <label className="absolute bottom-0 right-0 bg-study-primary text-white p-2 rounded-full cursor-pointer shadow-lg hover:bg-study-dark transition-colors z-20">
               <Camera size={20} />
               <input 
                 type="file" 
@@ -123,6 +138,11 @@ const ProfilePage = () => {
                 disabled={saving}
               />
             </label>
+            {saving && (
+              <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-full z-10">
+                <Loader2 className="animate-spin text-white" size={32} />
+              </div>
+            )}
           </div>
           <p className="mt-4 text-study-medium font-medium dark:text-zinc-400 text-xs">
             {user?.email}
@@ -191,7 +211,7 @@ const ProfilePage = () => {
           <Button 
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-study-primary hover:bg-study-dark text-white dark:text-zinc-900 rounded-2xl py-8 text-lg font-bold shadow-lg flex gap-2"
+            className="w-full bg-study-primary hover:bg-study-dark text-white rounded-2xl py-8 text-lg font-bold shadow-lg flex gap-2"
           >
             {saving ? <Loader2 className="animate-spin" /> : <Save size={20} />} 
             Salvar Alterações
