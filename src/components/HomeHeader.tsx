@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 const HomeHeader = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -17,44 +18,59 @@ const HomeHeader = () => {
   }, [user]);
 
   const fetchProfile = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('name, course, period, avatar_url')
-      .eq('id', user?.id)
-      .single();
-    
-    if (data) setProfile(data);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('name, course, period, avatar_url')
+        .eq('id', user?.id)
+        .single();
+      
+      if (error) throw error;
+      if (data) setProfile(data);
+    } catch (err) {
+      console.error("Erro ao carregar perfil no header:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="flex items-center justify-between p-6 bg-white dark:bg-zinc-900 rounded-3xl shadow-study mx-4 mt-6 border border-study-light/10 dark:border-white/5 transition-colors">
+    <div className="flex items-center justify-between p-6 bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-study mx-4 mt-6 border border-study-light/10 dark:border-white/5 transition-all duration-500 animate-in fade-in slide-in-from-top-4">
       <div className="flex items-center gap-4">
-        <div className="relative">
-          <Avatar className="h-16 w-16 border-4 border-study-light dark:border-zinc-800 shadow-sm">
-            <AvatarImage src={profile?.avatar_url} />
-            <AvatarFallback className="bg-study-primary text-white text-xl font-bold">
-              {profile?.name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-study-dark dark:text-white leading-none">
-            {profile?.name || "Estudante"}
-          </h2>
-          <p className="text-sm text-study-medium dark:text-zinc-400 font-medium mt-1">
-            {profile?.course ? `${profile.period || ''} - ${profile.course}` : user?.email}
-          </p>
-          <div className="flex gap-1 mt-2">
-            <div className="h-1 w-8 bg-study-primary rounded-full" />
-            <div className="h-1 w-4 bg-study-light dark:bg-zinc-800 rounded-full" />
+        <div className="relative group cursor-pointer">
+          <div className="p-0.5 rounded-full bg-gradient-to-tr from-study-primary to-blue-300 dark:to-blue-600 shadow-lg">
+            <Avatar className="h-16 w-16 border-4 border-white dark:border-zinc-900 shadow-sm transition-transform duration-300 group-hover:scale-105">
+              {loading ? (
+                <div className="flex items-center justify-center w-full h-full bg-study-light/20">
+                  <Loader2 className="animate-spin text-study-primary" size={20} />
+                </div>
+              ) : (
+                <>
+                  <AvatarImage src={profile?.avatar_url} className="object-cover" />
+                  <AvatarFallback className="bg-study-primary text-white text-xl font-bold">
+                    {profile?.name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </>
+              )}
+            </Avatar>
           </div>
+          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full shadow-sm" />
+        </div>
+        
+        <div>
+          <h2 className="text-xl font-black text-study-dark dark:text-white leading-none tracking-tight">
+            Olá, {profile?.name?.split(' ')[0] || "Estudante"}!
+          </h2>
+          <p className="text-[11px] text-study-medium dark:text-zinc-400 font-bold mt-1.5 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-study-primary animate-pulse" />
+            {profile?.course ? `${profile.period || ''} • ${profile.course}` : user?.email}
+          </p>
         </div>
       </div>
       
-      <button className="relative p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-study text-study-dark dark:text-white hover:bg-study-light/20 dark:hover:bg-zinc-700 transition-colors border border-study-light/20 dark:border-white/5">
-        <Bell size={24} />
-        <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-study-primary border-2 border-white dark:border-zinc-800 rounded-full animate-pulse" />
+      <button className="relative p-3.5 bg-study-light/10 dark:bg-zinc-800 rounded-2xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 group">
+        <Bell size={22} className="group-hover:animate-bounce" />
+        <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-zinc-800 rounded-full" />
       </button>
     </div>
   );
