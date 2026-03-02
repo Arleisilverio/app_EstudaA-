@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Camera, Save, User, BookOpen, Calendar, GraduationCap } from 'lucide-react';
+import { Camera, Save, User, BookOpen, GraduationCap } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,13 +24,13 @@ const ProfilePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF6F1] flex flex-col max-w-md mx-auto relative pb-32">
+    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative pb-32">
       <div className="p-6">
-        <h1 className="text-3xl font-bold text-study-dark mb-6">Meu Perfil</h1>
+        <h1 className="text-3xl font-bold text-study-dark dark:text-white mb-6">Meu Perfil</h1>
         
         <div className="flex flex-col items-center mb-8 relative">
           <div className="relative group">
-            <Avatar className="h-32 w-32 border-4 border-white shadow-study">
+            <Avatar className="h-32 w-32 border-4 border-white dark:border-zinc-800 shadow-study">
               <AvatarImage src={profile.avatar} />
               <AvatarFallback className="bg-study-primary text-white text-3xl">AS</AvatarFallback>
             </Avatar>
@@ -39,13 +39,13 @@ const ProfilePage = () => {
               <input type="file" className="hidden" accept="image/*" />
             </label>
           </div>
-          <p className="mt-4 text-study-medium font-medium">Toque para alterar a foto</p>
+          <p className="mt-4 text-study-medium font-medium dark:text-zinc-400">Toque para alterar a foto</p>
         </div>
 
         <div className="space-y-6">
-          <Card className="border-none shadow-study bg-white rounded-3xl overflow-hidden">
-            <CardHeader className="bg-study-light/20 pb-4">
-              <CardTitle className="text-lg flex items-center gap-2 text-study-dark">
+          <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
+            <CardHeader className="bg-study-light/20 dark:bg-zinc-800/50 pb-4">
+              <CardTitle className="text-lg flex items-center gap-2 text-study-dark dark:text-zinc-200">
                 <User size={18} className="text-study-primary" />
                 Informações Pessoais
               </CardTitle>
@@ -57,7 +57,7 @@ const ProfilePage = () => {
                   id="name" 
                   value={profile.name} 
                   onChange={(e) => setProfile({...profile, name: e.target.value})}
-                  className="rounded-xl border-study-light focus-visible:ring-study-primary/20"
+                  className="rounded-xl border-study-light dark:border-zinc-800 bg-transparent"
                 />
               </div>
 
@@ -69,7 +69,7 @@ const ProfilePage = () => {
                     id="course" 
                     value={profile.course} 
                     onChange={(e) => setProfile({...profile, course: e.target.value})}
-                    className="pl-10 rounded-xl border-study-light focus-visible:ring-study-primary/20"
+                    className="pl-10 rounded-xl border-study-light dark:border-zinc-800 bg-transparent"
                   />
                 </div>
               </div>
@@ -81,21 +81,17 @@ const ProfilePage = () => {
                     id="period" 
                     value={profile.period} 
                     onChange={(e) => setProfile({...profile, period: e.target.value})}
-                    className="rounded-xl border-study-light focus-visible:ring-study-primary/20"
+                    className="rounded-xl border-study-light dark:border-zinc-800 bg-transparent"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="year" className="text-study-medium">Conclusão (Opcional)</Label>
-                  <div className="relative">
-                    <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-study-light" size={18} />
-                    <Input 
-                      id="year" 
-                      value={profile.completionYear} 
-                      onChange={(e) => setProfile({...profile, completionYear: e.target.value})}
-                      className="pl-10 rounded-xl border-study-light focus-visible:ring-study-primary/20"
-                      placeholder="Ex: 2026"
-                    />
-                  </div>
+                  <Label htmlFor="year" className="text-study-medium">Conclusão</Label>
+                  <Input 
+                    id="year" 
+                    value={profile.completionYear} 
+                    onChange={(e) => setProfile({...profile, completionYear: e.target.value})}
+                    className="rounded-xl border-study-light dark:border-zinc-800 bg-transparent"
+                  />
                 </div>
               </div>
             </CardContent>
@@ -103,7 +99,7 @@ const ProfilePage = () => {
 
           <Button 
             onClick={handleSave}
-            className="w-full bg-study-primary hover:bg-study-dark text-white rounded-2xl py-8 text-lg font-bold shadow-lg flex gap-2"
+            className="w-full bg-study-primary hover:bg-study-dark text-white dark:text-zinc-900 rounded-2xl py-8 text-lg font-bold shadow-lg flex gap-2"
           >
             <Save size={20} /> Salvar Alterações
           </Button>

@@ -43,40 +43,40 @@
   }
  
   .dark {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
+    --background: 20 28% 4%; /* Quase preto mas com tom quente */
+    --foreground: 35 44% 92%;
  
-    --card: 240 10% 6%;
-    --card-foreground: 0 0% 98%;
+    --card: 20 28% 7%;
+    --card-foreground: 35 44% 92%;
  
-    --popover: 240 10% 4%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 20 28% 4%;
+    --popover-foreground: 35 44% 92%;
  
-    --primary: 25 39% 50%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 25 45% 60%; /* Marrom mais vibrante/acobreado para escuro */
+    --primary-foreground: 35 44% 10%;
  
-    --secondary: 240 4% 16%;
+    --secondary: 29 35% 45%;
     --secondary-foreground: 0 0% 98%;
  
-    --muted: 240 4% 16%;
-    --muted-foreground: 240 5% 65%;
+    --muted: 20 20% 15%;
+    --muted-foreground: 35 15% 70%;
  
-    --accent: 240 4% 16%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 25 39% 25%;
+    --accent-foreground: 35 44% 92%;
  
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
  
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 25 39% 50%;
+    --border: 20 20% 15%;
+    --input: 20 20% 15%;
+    --ring: 25 45% 60%;
 
     /* Custom Study Variables for Dark Mode */
-    --study-primary: 25 39% 55%;
-    --study-medium: 240 5% 65%;
-    --study-light: 240 4% 16%;
-    --study-background: 240 10% 4%;
-    --study-dark: 0 0% 98%;
+    --study-primary: 25 45% 60%;
+    --study-medium: 35 15% 70%;
+    --study-light: 20 20% 18%;
+    --study-background: 20 28% 4%;
+    --study-dark: 0 0% 100%;
   }
 }
 
@@ -87,22 +87,4 @@
   body {
     @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
   }
-}
-
-.prose-study {
-  --tw-prose-body: currentColor;
-  --tw-prose-headings: currentColor;
-  --tw-prose-links: #8B5E3C;
-  --tw-prose-bold: currentColor;
-  --tw-prose-counters: #A67C52;
-  --tw-prose-bullets: #A67C52;
-  --tw-prose-hr: #F3E8DC;
-  --tw-prose-quotes: #8B5E3C;
-  --tw-prose-quote-borders: #F3E8DC;
-  --tw-prose-captions: #A67C52;
-  --tw-prose-code: currentColor;
-  --tw-prose-pre-code: #F3E8DC;
-  --tw-prose-pre-bg: #3E2C23;
-  --tw-prose-th-borders: #F3E8DC;
-  --tw-prose-td-borders: #F3E8DC;
 }
