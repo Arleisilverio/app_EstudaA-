@@ -4,11 +4,12 @@ import React from 'react';
 import Navbar from "@/components/Navbar";
 import FileSidebar from "@/components/FileSidebar";
 import ChatArea from "@/components/ChatArea";
+import BottomNav from "@/components/BottomNav";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 
-const Index = () => {
+const StudyDashboard = () => {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pb-32">
       <Navbar />
       
       <main className="container flex-1 py-8 flex flex-col lg:flex-row gap-10">
@@ -21,14 +22,16 @@ const Index = () => {
         </section>
       </main>
       
-      <footer className="py-6 border-t bg-white/50">
+      <footer className="py-6 border-t bg-white/50 dark:bg-zinc-900/50">
         <div className="container flex flex-col items-center gap-2">
           <p className="text-xs text-study-medium">© 2024 Estuda AÍ - Seu assistente acadêmico inteligente</p>
           <MadeWithDyad />
         </div>
       </footer>
+
+      <BottomNav />
     </div>
   );
 };
 
-export default Index;
+export default StudyDashboard;
