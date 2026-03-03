@@ -65,20 +65,33 @@ const FileSidebar = () => {
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !isAdmin) return;
+    if (!file) return;
+    
+    if (!isAdmin) {
+      toast.error("Apenas administradores podem enviar arquivos.");
+      return;
+    }
 
     try {
       setIsUploading(true);
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `documents/${fileName}`;
+      const fileName = `${subjectId}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
+      // Upload para o Storage
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from('documents')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Erro no Storage:", uploadError);
+        throw new Error(`Erro no Storage: ${uploadError.message}`);
+      }
 
+      // Registro na Tabela
       const { error: dbError } = await supabase
         .from('documents')
         .insert([{
@@ -89,15 +102,20 @@ const FileSidebar = () => {
           status: 'ready'
         }]);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error("Erro no Banco:", dbError);
+        throw new Error(`Erro no Banco: ${dbError.message}`);
+      }
 
       toast.success("Documento adicionado com sucesso!");
       fetchDocuments();
-    } catch (err) {
-      console.error(err);
-      toast.error("Erro ao enviar arquivo");
+    } catch (err: any) {
+      console.error("Erro completo:", err);
+      toast.error(err.message || "Erro desconhecido ao enviar arquivo");
     } finally {
       setIsUploading(false);
+      // Limpar o input para permitir subir o mesmo arquivo novamente se necessário
+      event.target.value = '';
     }
   };
 
@@ -126,8 +144,18 @@ const FileSidebar = () => {
   const removeDoc = async (id: string) => {
     if (!confirm("Excluir este documento da base de conhecimento?")) return;
     try {
-      const { error } = await supabase.from('documents').delete().eq('id', id);
-      if (error) throw error;
+      // 1. Buscar info do arquivo para deletar do storage também
+      const { data: doc } = await supabase.from('documents').select('file_path').eq('id', id).single();
+      
+      // 2. Deletar do Banco
+      const { error: dbError } = await supabase.from('documents').delete().eq('id', id);
+      if (dbError) throw dbError;
+
+      // 3. Deletar do Storage (opcional, mas recomendado)
+      if (doc?.file_path) {
+        await supabase.storage.from('documents').remove([doc.file_path]);
+      }
+
       setDocuments(docs => docs.filter(d => d.id !== id));
       toast.success("Documento removido");
     } catch (err) {
@@ -163,10 +191,18 @@ const FileSidebar = () => {
                 {isUploading ? <Loader2 className="animate-spin text-study-primary" /> : <Upload className="text-study-primary" />}
               </div>
               <div className="text-center">
-                <p className="text-xs font-bold text-study-dark dark:text-zinc-200 uppercase tracking-wide">Adicionar Arquivo</p>
+                <p className="text-xs font-bold text-study-dark dark:text-zinc-200 uppercase tracking-wide">
+                  {isUploading ? "Enviando..." : "Adicionar Arquivo"}
+                </p>
                 <p className="text-[10px] text-study-medium dark:text-zinc-500 font-medium">PDF, DOCX ou TXT</p>
               </div>
-              <input type="file" className="hidden" onChange={handleUpload} disabled={isUploading} accept=".pdf,.docx,.txt" />
+              <input 
+                type="file" 
+                className="hidden" 
+                onChange={handleUpload} 
+                disabled={isUploading} 
+                accept=".pdf,.docx,.txt" 
+              />
             </label>
           </CardContent>
         </Card>
