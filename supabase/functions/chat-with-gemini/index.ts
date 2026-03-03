@@ -17,14 +17,12 @@ serve(async (req) => {
 
   try {
     const { subjectId, query, action } = await req.json()
-    console.log(`[${functionName}] Matéria: ${subjectId}, Ação: ${action}`);
     
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!OPENAI_API_KEY) {
-      console.error(`[${functionName}] Erro: OPENAI_API_KEY não configurada`);
       return new Response(JSON.stringify({ error: "Chave de API não configurada." }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -33,95 +31,89 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
 
-    // 1. Buscar Documentos
-    console.log(`[${functionName}] Buscando documentos da matéria...`);
+    // 1. Buscar metadados dos documentos
     const { data: documents, error: docsError } = await supabase
       .from('documents')
       .select('name, file_path')
       .eq('subject_id', subjectId);
 
-    if (docsError) {
-      console.error(`[${functionName}] Erro ao buscar documentos:`, docsError);
-      throw docsError;
-    }
+    if (docsError) throw docsError;
 
+    // 2. Baixar conteúdos em PARALELO para ganhar tempo
     let contextText = "";
     if (documents && documents.length > 0) {
-      console.log(`[${functionName}] Processando ${documents.length} documentos`);
-      for (const doc of documents) {
+      console.log(`[${functionName}] Baixando ${documents.length} documentos em paralelo...`);
+      
+      const downloadPromises = documents.map(async (doc) => {
         try {
           const { data: fileBlob, error: downloadError } = await supabase.storage.from('documents').download(doc.file_path)
-          if (downloadError) {
-            console.warn(`[${functionName}] Falha ao baixar ${doc.name}:`, downloadError);
-            continue;
-          }
-          if (fileBlob) {
-            const text = await fileBlob.text();
-            contextText += `\n--- CONTEÚDO DO ARQUIVO: ${doc.name} ---\n${text.substring(0, 15000)}\n`;
-          }
+          if (downloadError) return null;
+          const text = await fileBlob.text();
+          // Pegamos os primeiros 8000 caracteres de cada arquivo para não estourar o limite de tempo/tokens
+          return `\n--- FONTE: ${doc.name} ---\n${text.substring(0, 8000)}\n`;
         } catch (e) {
-          console.error(`[${functionName}] Erro inesperado ao ler ${doc.name}:`, e);
+          return null;
         }
-      }
-    } else {
-      console.log(`[${functionName}] Nenhum documento encontrado para esta matéria.`);
+      });
+
+      const results = await Promise.all(downloadPromises);
+      contextText = results.filter(r => r !== null).join("");
     }
 
-    // 2. Definir Prompts
+    // 3. Definir Prompts Otimizados
     let systemPrompt = `Você é o Professor Especialista do Estuda AÍ. 
-    SUA FONTE ÚNICA DE VERDADE É O "CONTEXTO DOS DOCUMENTOS" ABAIXO.
+    Seu objetivo é auxiliar o aluno com base nos documentos fornecidos.
     
     DIRETRIZES:
-    - Se o usuário pedir um SIMULADO, você DEVE criar EXATAMENTE 10 questões de múltipla escolha.
-    - Se não houver contexto suficiente para 10 questões, use seu conhecimento geral MAS PRIORIZE o que estiver nos arquivos.
-    - É PROIBIDO retornar qualquer texto antes ou depois do JSON se for um simulado.`;
+    - Se houver muito conteúdo, foque nos conceitos mais importantes para provas.
+    - Seja direto e acadêmico.
+    - Se o usuário pedir um simulado, você DEVE gerar exatamente 10 questões de múltipla escolha.`;
     
     if (action === 'quiz') {
       systemPrompt += `
       TAREFA: Gere um SIMULADO DE 10 QUESTÕES em formato JSON puro.
-      ESTRUTURA JSON OBRIGATÓRIA:
+      - Não escreva nada além do JSON.
+      - Use o contexto das fontes para criar questões variadas.
+      
+      ESTRUTURA JSON:
       {
         "questions": [
           {
             "id": 1,
-            "question": "Texto da questão",
+            "question": "Pergunta baseada no texto...",
             "options": ["A", "B", "C", "D"],
             "correctIndex": 0,
-            "explanation": "Explicação curta"
+            "explanation": "Explicação do porquê a alternativa está correta."
           }
         ]
       }`;
     }
 
-    console.log(`[${functionName}] Chamando OpenAI...`);
+    // 4. Chamada OpenAI (usando gpt-4o-mini para simulados se forem grandes, ou gpt-4o para chat)
+    // Nota: gpt-4o-mini é MUITO mais rápido para gerar JSON longo de 10 questões
+    const model = action === 'quiz' ? "gpt-4o-mini" : "gpt-4o";
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: model,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "system", content: `CONTEXTO DOS DOCUMENTOS:\n${contextText || "Base de dados vazia. Use seus conhecimentos gerais para ajudar o aluno."}` },
+          { role: "system", content: `CONTEXTO DAS FONTES:\n${contextText || "Use seus conhecimentos gerais."}` },
           { role: "user", content: query }
         ],
-        temperature: 0.3
+        temperature: 0.4
       })
     })
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[${functionName}] Erro na API da OpenAI:`, errorText);
-      throw new Error("Erro na comunicação com a IA");
-    }
+    if (!response.ok) throw new Error("Erro na API da OpenAI");
 
     const result = await response.json()
-    const content = result.choices?.[0]?.message?.content
-    console.log(`[${functionName}] Resposta recebida da OpenAI`);
+    let finalContent = result.choices?.[0]?.message?.content
 
-    let finalContent = content;
     if (action === 'quiz') {
-      // Limpeza agressiva de markdown/blocos de código
-      finalContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
+      finalContent = finalContent.replace(/```json/g, "").replace(/```/g, "").trim();
     }
 
     return new Response(JSON.stringify({ 
@@ -131,7 +123,7 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   } catch (err) {
-    console.error(`[${functionName}] Erro crítico:`, err);
+    console.error(`[${functionName}] Erro:`, err);
     return new Response(JSON.stringify({ error: err.message }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
