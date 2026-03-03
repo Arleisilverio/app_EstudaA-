@@ -16,9 +16,11 @@ serve(async (req) => {
     const { subjectId, query, action } = await req.json()
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
 
+    console.log(`[chat-with-gemini] Iniciando requisição. Matéria: ${subjectId}, Ação: ${action}`);
+
     if (!GEMINI_API_KEY) {
       console.error("[chat-with-gemini] ERRO: GEMINI_API_KEY não encontrada nos Secrets.");
-      return new Response(JSON.stringify({ error: 'Configuração ausente: GEMINI_API_KEY' }), {
+      return new Response(JSON.stringify({ error: 'Chave de API ausente.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
@@ -40,6 +42,12 @@ serve(async (req) => {
     let contextText = ""
     if (documents && documents.length > 0) {
       for (const doc of documents) {
+        // Filtro simples: Apenas ler arquivos que pareçam texto
+        if (!doc.name.toLowerCase().endsWith('.txt') && !doc.name.toLowerCase().endsWith('.md')) {
+          console.log(`[chat-with-gemini] Pulando arquivo não-texto: ${doc.name}`);
+          continue;
+        }
+
         const { data, error: storageError } = await supabaseClient
           .storage
           .from('documents')
@@ -47,37 +55,42 @@ serve(async (req) => {
         
         if (!storageError && data) {
           const text = await data.text()
-          contextText += `--- ARQUIVO: ${doc.name} ---\n${text}\n\n`
+          // Limitar o tamanho do texto para não estourar o limite do prompt
+          contextText += `--- ARQUIVO: ${doc.name} ---\n${text.substring(0, 10000)}\n\n`
         }
       }
     }
 
-    // 2. Prompt
-    let systemInstruction = "Você é um Professor Virtual acadêmico especializado. "
-    if (action === 'quiz') systemInstruction += "Gere 5 questões de múltipla escolha com 4 alternativas e gabarito no final."
-    else if (action === 'summary') systemInstruction += "Crie um resumo detalhado em tópicos do material fornecido."
-    else systemInstruction += "Responda as dúvidas com base no material fornecido. Seja didático."
+    console.log(`[chat-with-gemini] Contexto extraído (${contextText.length} caracteres).`);
 
-    const prompt = `CONTEÚDO DE ESTUDO:\n${contextText || "Sem arquivos."}\n\nSOLICITAÇÃO DO ALUNO: ${query}\n\nINSTRUÇÃO: ${systemInstruction}`
+    // 2. Instruções do Professor
+    let systemInstruction = "Você é um Professor Virtual acadêmico. "
+    if (action === 'quiz') systemInstruction += "Gere 5 questões de múltipla escolha com gabarito."
+    else if (action === 'summary') systemInstruction += "Crie um resumo em tópicos."
+    else systemInstruction += "Responda de forma didática baseada no conteúdo fornecido."
 
-    // 3. Chamada Gemini com tratamento de erro detalhado
-    console.log(`[chat-with-gemini] Enviando solicitação para o Gemini para a matéria ${subjectId}`);
-    
+    const prompt = `MATERIAL DE ESTUDO:\n${contextText || "Nenhum arquivo de texto encontrado. Responda com base em conhecimentos gerais de estudante."}\n\nPERGUNTA DO ALUNO: ${query}\n\nINSTRUÇÃO: ${systemInstruction}`
+
+    // 3. Chamada ao Google Gemini
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+        ]
       })
     })
 
     const geminiData = await response.json()
 
     if (!response.ok) {
-      console.error("[chat-with-gemini] Erro na API do Gemini:", geminiData);
-      return new Response(JSON.stringify({ 
-        error: geminiData.error?.message || "Erro na comunicação com o Google Gemini" 
-      }), {
+      console.error("[chat-with-gemini] Erro Google:", geminiData);
+      return new Response(JSON.stringify({ error: geminiData.error?.message || "Erro no Google" }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: response.status,
       })
@@ -86,9 +99,10 @@ serve(async (req) => {
     const aiResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
 
     if (!aiResponse) {
-      console.warn("[chat-with-gemini] Resposta vazia ou bloqueada pelo filtro de segurança:", geminiData);
+      const reason = geminiData.promptFeedback?.blockReason || "Filtro de segurança do Google";
+      console.warn(`[chat-with-gemini] Resposta bloqueada. Motivo: ${reason}`);
       return new Response(JSON.stringify({ 
-        text: "O Professor Virtual não pôde gerar uma resposta para este conteúdo por motivos de segurança ou falta de contexto.",
+        text: `O Professor Virtual não pôde responder este tópico específico (Motivo: ${reason}). Tente perguntar de outra forma ou verifique se o material é legível.`,
         sources: []
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -96,6 +110,7 @@ serve(async (req) => {
       })
     }
 
+    console.log("[chat-with-gemini] Resposta gerada com sucesso.");
     return new Response(JSON.stringify({ 
       text: aiResponse,
       sources: documents?.map(d => d.name) || []
@@ -105,7 +120,7 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    console.log(`[chat-with-gemini] Erro Crítico: ${error.message}`)
+    console.error(`[chat-with-gemini] Erro Crítico: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
