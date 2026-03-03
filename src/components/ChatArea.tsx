@@ -29,7 +29,7 @@ const ChatArea = () => {
       .eq('subject_id', subjectId)
       .gte('created_at', today);
 
-    if (error) return true; // Falha de segurança, bloqueia por precaução
+    if (error) return true;
     return (count || 0) < 5;
   };
 
@@ -58,14 +58,26 @@ const ChatArea = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Função erro:", error);
+        throw new Error(error.message || "Falha na comunicação com o servidor");
+      }
       
+      if (!data) throw new Error("Servidor não retornou dados");
+
       if (data.isQuiz) {
         try {
-          const parsed = JSON.parse(data.text);
-          setCurrentQuiz(parsed.questions || []);
+          // Garante que o texto seja limpo antes de parsear
+          const jsonString = data.text.trim();
+          const parsed = JSON.parse(jsonString);
+          if (parsed.questions && Array.isArray(parsed.questions)) {
+            setCurrentQuiz(parsed.questions);
+          } else {
+            throw new Error("Formato de quiz inválido");
+          }
         } catch (e) {
-          toast.error("Erro ao processar o simulado. Tente novamente.");
+          console.error("Erro parse quiz:", e, data.text);
+          toast.error("A IA gerou um formato inválido. Tente novamente.");
         }
       } else {
         setResponse(data);
@@ -73,7 +85,8 @@ const ChatArea = () => {
 
       if (actionType === 'chat') setQuery("");
     } catch (err: any) {
-      toast.error("Erro ao processar sua solicitação.");
+      console.error("Erro geral processamento:", err);
+      toast.error(`Erro: ${err.message || "Não foi possível processar."}`);
     } finally {
       setIsLoading(false);
     }
