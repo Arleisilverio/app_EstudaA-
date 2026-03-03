@@ -10,6 +10,11 @@ const Navbar = () => {
   const location = useLocation();
   const isHome = location.pathname === '/';
 
+  // Forçamos a volta para a home para garantir que o botão sempre funcione
+  const handleBack = () => {
+    navigate('/');
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center gap-4 px-4 sm:px-8">
@@ -17,7 +22,7 @@ const Navbar = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="rounded-full hover:bg-study-light/20 text-study-dark dark:text-white"
           >
             <ChevronLeft size={24} />
