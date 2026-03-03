@@ -5,30 +5,57 @@ import { Bell, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import NotificationList from './NotificationList';
+import { differenceInDays, parseISO, isAfter, startOfDay } from 'date-fns';
 
 const HomeHeader = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      fetchProfile();
+      fetchData();
     }
   }, [user]);
 
-  const fetchProfile = async () => {
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      
+      // 1. Carregar Perfil
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('name, course, period, avatar_url')
         .eq('id', user?.id)
         .single();
       
-      if (error) throw error;
-      if (data) setProfile(data);
+      if (profileData) setProfile(profileData);
+
+      // 2. Carregar Provas para Alertas
+      const today = startOfDay(new Date());
+      const { data: examsData } = await supabase
+        .from('exams')
+        .select('id, subject, date, time')
+        .order('date', { ascending: true });
+
+      if (examsData) {
+        // Filtrar: data não passou E falta menos de 3 dias (0, 1 ou 2 dias)
+        const relevantAlerts = examsData.filter(exam => {
+          const examDate = parseISO(exam.date);
+          const diff = differenceInDays(examDate, today);
+          
+          // Regra: Não mostrar se a data passou (diff < 0)
+          // Regra: Mostrar se faltar 2 dias ou menos (diff <= 2)
+          return diff >= 0 && diff <= 2;
+        });
+        
+        setNotifications(relevantAlerts);
+      }
     } catch (err) {
-      console.error("Erro ao carregar perfil no header:", err);
+      console.error("Erro ao carregar dados no header:", err);
     } finally {
       setLoading(false);
     }
@@ -68,10 +95,19 @@ const HomeHeader = () => {
         </div>
       </div>
       
-      <button className="relative p-3.5 bg-study-light/10 dark:bg-zinc-800 rounded-2xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 group">
-        <Bell size={22} className="group-hover:animate-bounce" />
-        <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-zinc-800 rounded-full" />
-      </button>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button className="relative p-3.5 bg-study-light/10 dark:bg-zinc-800 rounded-2xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 group">
+            <Bell size={22} className={notifications.length > 0 ? "group-hover:animate-bounce" : ""} />
+            {notifications.length > 0 && (
+              <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-zinc-800 rounded-full animate-pulse" />
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="p-0 bg-transparent border-none shadow-none" align="end" sideOffset={12}>
+          <NotificationList notifications={notifications} />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 };
