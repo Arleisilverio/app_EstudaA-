@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Save, User, BookOpen, Loader2, History, Trash2, Award } from 'lucide-react';
+import { Camera, Save, User, Loader2, History, Trash2, Award, Calendar, GraduationCap } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,7 +62,11 @@ const ProfilePage = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await supabase.from('profiles').upsert({ id: user?.id, ...profile, updated_at: new Date().toISOString() });
+    const { error } = await supabase.from('profiles').upsert({ 
+      id: user?.id, 
+      ...profile, 
+      updated_at: new Date().toISOString() 
+    });
     if (!error) toast.success("Perfil atualizado!");
     setSaving(false);
   };
@@ -78,7 +82,9 @@ const ProfilePage = () => {
           <div className="relative">
             <Avatar className="h-32 w-32 border-4 border-white shadow-xl">
               <AvatarImage src={profile.avatar_url} className="object-cover" />
-              <AvatarFallback className="bg-study-primary text-white text-3xl font-bold">{profile.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+              <AvatarFallback className="bg-study-primary text-white text-3xl font-bold">
+                {profile.name?.substring(0, 2).toUpperCase() || "??"}
+              </AvatarFallback>
             </Avatar>
             <label className="absolute bottom-1 right-1 bg-study-primary text-white p-2.5 rounded-full cursor-pointer shadow-lg border-2 border-white">
               <Camera size={20} />
@@ -89,23 +95,52 @@ const ProfilePage = () => {
         </div>
 
         <div className="space-y-8">
-          {/* Informações */}
+          {/* Formulário Completo de Informações */}
           <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem]">
             <CardHeader className="bg-study-light/20 pb-4">
               <CardTitle className="text-base flex items-center gap-2">
-                <User size={18} className="text-study-primary" /> Informações
+                <User size={18} className="text-study-primary" /> Informações Acadêmicas
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
               <div className="space-y-1">
                 <Label className="text-[10px] font-bold uppercase ml-1">Nome Completo</Label>
-                <Input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="rounded-xl" />
+                <Input 
+                  value={profile.name} 
+                  onChange={e => setProfile({...profile, name: e.target.value})} 
+                  className="rounded-xl" 
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-[10px] font-bold uppercase ml-1">Curso</Label>
-                <Input value={profile.course} onChange={e => setProfile({...profile, course: e.target.value})} className="rounded-xl" />
+                <Input 
+                  value={profile.course} 
+                  onChange={e => setProfile({...profile, course: e.target.value})} 
+                  className="rounded-xl" 
+                />
               </div>
-              <Button onClick={handleSave} disabled={saving} className="w-full bg-study-primary rounded-xl mt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase ml-1">Período</Label>
+                  <Input 
+                    value={profile.period} 
+                    onChange={e => setProfile({...profile, period: e.target.value})} 
+                    placeholder="Ex: 5º Período" 
+                    className="rounded-xl" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase ml-1">Ano Conclusão</Label>
+                  <Input 
+                    value={profile.completion_year} 
+                    onChange={e => setProfile({...profile, completion_year: e.target.value})} 
+                    placeholder="Ex: 2026" 
+                    className="rounded-xl" 
+                  />
+                </div>
+              </div>
+              <Button onClick={handleSave} disabled={saving} className="w-full bg-study-primary rounded-xl mt-2 font-bold py-6">
+                {saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />}
                 Salvar Dados
               </Button>
             </CardContent>
