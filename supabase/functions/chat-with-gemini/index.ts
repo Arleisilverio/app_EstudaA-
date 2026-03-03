@@ -25,7 +25,7 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
 
-    // 1. Buscar documentos para contexto
+    // 1. Buscar TODOS os documentos da matéria para servir de base única
     const { data: documents } = await supabase.from('documents').select('name, file_path').eq('subject_id', subjectId)
     let contextText = "";
     
@@ -35,37 +35,38 @@ serve(async (req) => {
           const { data: fileBlob } = await supabase.storage.from('documents').download(doc.file_path)
           if (fileBlob) {
             const text = await fileBlob.text();
-            // Aumentamos o limite de extração para garantir mais base de conhecimento
-            contextText += `\n--- INÍCIO DO DOCUMENTO: ${doc.name} ---\n${text.substring(0, 20000)}\n--- FIM DO DOCUMENTO: ${doc.name} ---\n`;
+            // Limite alto para cobrir o máximo de conteúdo possível
+            contextText += `\n--- CONTEÚDO DO ARQUIVO: ${doc.name} ---\n${text.substring(0, 30000)}\n`;
           }
         } catch (e) {
-          console.error(`Erro ao ler ${doc.name}`);
+          console.error(`Erro ao processar ${doc.name}`);
         }
       }
     }
 
-    // 2. Definir o comportamento RESTRETO da IA
-    let systemPrompt = `Você é o Professor Virtual do Estuda AÍ. 
-    REGRAS DE OURO (NÃO PODEM SER QUEBRADAS):
-    1. Responda EXCLUSIVAMENTE com base no "CONTEXTO DOS DOCUMENTOS" fornecido abaixo.
-    2. É TERMINANTEMENTE PROIBIDO inventar informações ou usar conhecimentos externos (da sua base de treinamento) que não estejam explicitamente citados no material fornecido.
-    3. Se o material fornecido estiver vazio ou não contiver a resposta para a pergunta, diga: "Desculpe, mas não encontrei essa informação nos materiais desta matéria disponibilizados pelo professor."
-    4. Se for solicitado um resumo, resuma apenas o que está nos documentos.
-    5. Se for solicitado um simulado, todas as questões devem ser extraídas de fatos presentes nos documentos.`;
+    // 2. Comportamento rigoroso focado na BASE DE CONHECIMENTOS
+    let systemPrompt = `Você é o Professor Especialista do Estuda AÍ. 
+    SUA FONTE ÚNICA DE VERDADE É O "CONTEXTO DOS DOCUMENTOS" ABAIXO.
+    
+    DIRETRIZES:
+    - Se o usuário pedir um SIMULADO, você deve criar 10 questões de múltipla escolha.
+    - Cada questão deve ser baseada em fatos, conceitos ou dados PRESENTES nos documentos fornecidos.
+    - É PROIBIDO usar conhecimentos externos à base fornecida.
+    - Se não houver conteúdo suficiente para 10 questões, crie o máximo possível mantendo a qualidade.`;
     
     if (action === 'quiz') {
       systemPrompt += `
-      TAREFA: Gere um SIMULADO DE 10 QUESTÕES baseado ÚNICAMENTE no material.
+      TAREFA: Gere um SIMULADO DE 10 QUESTÕES (JSON).
       REGRAS DO JSON:
-      - Retorne APENAS o JSON puro.
-      - Estrutura: {"questions": [{"id": 1, "question": "...", "options": ["A", "B", "C", "D"], "correctIndex": 0, "explanation": "..."}]}
-      - A "explanation" deve citar em qual documento/trecho a resposta se baseia.
-      - Se não houver material suficiente para 10 questões de qualidade, gere quantas for possível (mínimo 1) ou informe a falta de material.`;
+      - Retorne APENAS o JSON puro, sem textos explicativos fora do bloco.
+      - Estrutura: {"questions": [{"id": 1, "question": "...", "options": ["Opção 1", "Opção 2", "Opção 3", "Opção 4"], "correctIndex": 0, "explanation": "Explicação baseada no texto..."}]}
+      - O "correctIndex" é a posição da resposta correta (0 a 3).
+      - A "explanation" deve ser clara e educativa.`;
     }
 
     const messages = [
       { role: "system", content: systemPrompt },
-      { role: "system", content: `CONTEXTO DOS DOCUMENTOS:\n${contextText || "Nenhum documento disponível."}` },
+      { role: "system", content: `CONTEXTO DOS DOCUMENTOS (BASE DE CONHECIMENTO):\n${contextText || "Nenhum documento disponível. Avise ao usuário para fazer upload de arquivos primeiro."}` },
       { role: "user", content: query }
     ];
 
@@ -75,7 +76,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "gpt-4o",
         messages: messages,
-        temperature: 0.1 // Temperatura baixa para garantir fidelidade ao texto e evitar "criatividade"
+        temperature: 0.2 // Baixa temperatura para evitar alucinações
       })
     })
 
@@ -84,7 +85,6 @@ serve(async (req) => {
 
     let finalContent = content;
     if (action === 'quiz') {
-      // Limpeza de blocos de código markdown se o GPT os incluir
       finalContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
     }
 
@@ -95,6 +95,6 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   } catch (err) {
-    return new Response(JSON.stringify({ text: "Erro interno: " + err.message }), { headers: corsHeaders })
+    return new Response(JSON.stringify({ text: "Erro ao gerar simulado: " + err.message }), { headers: corsHeaders })
   }
 })
