@@ -9,7 +9,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // 1. Lidar com o CORS (Pré-vôo)
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -20,119 +19,87 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
     const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    console.log(`[chat-with-gemini] Iniciando processamento para Matéria: ${subjectId}`);
+    console.log(`[chat-with-gemini] Iniciando. Matéria: ${subjectId}`);
 
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada.");
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
 
-    // 2. Buscar arquivos da matéria
+    // 1. Buscar arquivos
     const { data: documents, error: dbError } = await supabase
       .from('documents')
       .select('name, file_path')
       .eq('subject_id', subjectId)
 
     if (dbError) throw dbError
-    console.log(`[chat-with-gemini] Arquivos encontrados: ${documents?.length || 0}`);
 
     const parts = []
 
-    // 3. Baixar e Codificar (Otimizado para arquivos grandes)
+    // 2. Processar Documentos
     if (documents && documents.length > 0) {
       for (const doc of documents) {
-        console.log(`[chat-with-gemini] Processando: ${doc.name}`);
-        
-        const { data: fileBlob, error: storageError } = await supabase
-          .storage
-          .from('documents')
-          .download(doc.file_path)
+        console.log(`[chat-with-gemini] Lendo: ${doc.name}`);
+        const { data: fileBlob } = await supabase.storage.from('documents').download(doc.file_path)
 
-        if (storageError) {
-          console.error(`[chat-with-gemini] Erro no download de ${doc.name}:`, storageError);
-          continue;
+        if (fileBlob) {
+          const arrayBuffer = await fileBlob.arrayBuffer()
+          const base64 = encodeBase64(new Uint8Array(arrayBuffer))
+          const isPdf = doc.name.toLowerCase().endsWith('.pdf')
+
+          parts.push({
+            inlineData: {
+              data: base64,
+              mimeType: isPdf ? "application/pdf" : "text/plain"
+            }
+          })
         }
-
-        // Usando Uint8Array e encodeBase64 nativo do Deno para velocidade máxima
-        const arrayBuffer = await fileBlob.arrayBuffer()
-        const uint8Array = new Uint8Array(arrayBuffer)
-        const base64 = encodeBase64(uint8Array)
-        
-        const isPdf = doc.name.toLowerCase().endsWith('.pdf')
-
-        parts.push({
-          inlineData: {
-            data: base64,
-            mimeType: isPdf ? "application/pdf" : "text/plain"
-          }
-        })
       }
     }
 
-    // 4. Instrução do Professor
-    const systemPrompt = `Você é o Professor Virtual do Estuda AÍ. 
-    Seu objetivo é auxiliar o aluno com base nos materiais fornecidos.
-    
-    DIRETRIZES:
-    - Responda de forma completa e didática.
-    - Use os PDFs fornecidos como fonte primária de verdade.
-    - Se a informação não estiver nos PDFs, use seu conhecimento geral mas mencione isso.
-    - Ação atual: ${action || 'chat'} (se 'quiz', gere 5 questões. se 'summary', gere um resumo em tópicos).
-    
-    PERGUNTA DO ALUNO: ${query}`;
+    // 3. Prompt
+    const prompt = `Você é o Professor Virtual do Estuda AÍ.
+    Ação: ${action || 'chat'}
+    Contexto: Responda em Português-BR com base nos documentos.
+    Pergunta: ${query}`;
 
-    parts.push({ text: systemPrompt })
+    parts.push({ text: prompt })
 
-    // 5. Chamada ao Google Gemini (Flash 1.5 é o melhor para contextos longos)
-    console.log("[chat-with-gemini] Enviando payload para o Gemini...");
+    // 4. Chamada à API (Usando v1 e gemini-1.5-flash-latest para maior compatibilidade)
+    console.log("[chat-with-gemini] Chamando Gemini API...");
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    // Tentamos primeiro a v1 que é mais estável
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: parts }],
-        generationConfig: {
-          temperature: 0.7,
-          topP: 0.95,
-          topK: 40,
-          maxOutputTokens: 4096,
-        }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
       })
     })
 
     const result = await response.json()
 
     if (!response.ok) {
-      console.error("[chat-with-gemini] Erro na API do Google:", JSON.stringify(result));
+      console.error("[chat-with-gemini] Erro detalhado:", result);
+      // Se o erro for de modelo não encontrado, avisamos o usuário para verificar a chave
       return new Response(JSON.stringify({ 
-        text: `Erro na comunicação com a IA: ${result.error?.message || 'Tente novamente em instantes.'}`,
+        text: `Erro de configuração na IA: ${result.error?.message || 'Modelo não suportado'}. Verifique se sua chave de API tem acesso ao Gemini 1.5 Flash.`,
         sources: []
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
     }
 
     const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text
 
-    if (!aiResponse) {
-      console.warn("[chat-with-gemini] Resposta vazia recebida.");
-      return new Response(JSON.stringify({ 
-        text: "O professor virtual analisou os documentos mas não conseguiu gerar uma resposta. Tente refazer a pergunta de forma mais específica.",
-        sources: []
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
-    }
-
-    console.log("[chat-with-gemini] Sucesso!");
     return new Response(JSON.stringify({ 
-      text: aiResponse,
+      text: aiResponse || "O professor não conseguiu formular uma resposta agora.",
       sources: documents?.map(d => d.name) || []
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
 
   } catch (err) {
-    console.error(`[chat-with-gemini] Erro Inesperado: ${err.message}`);
-    return new Response(JSON.stringify({ 
-      text: "Ocorreu um erro no processamento do servidor. Certifique-se de que o arquivo não está corrompido.",
-      error: err.message 
-    }), { 
+    console.error(`[chat-with-gemini] Erro: ${err.message}`);
+    return new Response(JSON.stringify({ text: "Erro no servidor da IA. Tente novamente." }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
-      status: 200 // Retornamos 200 para mostrar a mensagem amigável no chat
+      status: 200 
     })
   }
 })
