@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Save, User, Loader2, History, Trash2, Award, Calendar, GraduationCap } from 'lucide-react';
+import { Camera, Save, User, Loader2, History, Trash2, Award, Calendar, GraduationCap, Image as ImageIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ const ProfilePage = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [quizHistory, setQuizHistory] = useState<any[]>([]);
   const [profile, setProfile] = useState({
     name: "",
@@ -51,6 +52,44 @@ const ProfilePage = () => {
     if (data) setQuizHistory(data);
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setUploading(true);
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user?.id}-${Math.random()}.${fileExt}`;
+
+      // Upload da imagem para o bucket 'announcements' (usando o mesmo bucket existente para simplificar)
+      const { error: uploadError } = await supabase.storage
+        .from('announcements')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('announcements')
+        .getPublicUrl(filePath);
+
+      // Atualiza o estado local e o banco de dados
+      setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user?.id);
+
+      if (updateError) throw updateError;
+
+      toast.success("Foto de perfil atualizada!");
+    } catch (error: any) {
+      toast.error("Erro ao carregar imagem: " + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const deleteHistoryItem = async (id: string) => {
     if (!confirm("Excluir este simulado do histórico?")) return;
     const { error } = await supabase.from('quiz_history').delete().eq('id', id);
@@ -79,23 +118,38 @@ const ProfilePage = () => {
         <h1 className="text-3xl font-bold text-study-dark dark:text-white mb-8">Meu Perfil</h1>
         
         <div className="flex flex-col items-center mb-10">
-          <div className="relative">
-            <Avatar className="h-32 w-32 border-4 border-white shadow-xl">
-              <AvatarImage src={profile.avatar_url} className="object-cover" />
-              <AvatarFallback className="bg-study-primary text-white text-3xl font-bold">
-                {profile.name?.substring(0, 2).toUpperCase() || "??"}
-              </AvatarFallback>
-            </Avatar>
-            <label className="absolute bottom-1 right-1 bg-study-primary text-white p-2.5 rounded-full cursor-pointer shadow-lg border-2 border-white">
+          <div className="relative group">
+            <div className="p-1 rounded-full bg-gradient-to-tr from-study-primary to-blue-300 shadow-xl">
+              <Avatar className="h-32 w-32 border-4 border-white dark:border-zinc-900 overflow-hidden">
+                {uploading ? (
+                  <div className="flex items-center justify-center w-full h-full bg-study-light/20">
+                    <Loader2 className="animate-spin text-study-primary" size={32} />
+                  </div>
+                ) : (
+                  <>
+                    <AvatarImage src={profile.avatar_url} className="object-cover" />
+                    <AvatarFallback className="bg-study-primary text-white text-3xl font-bold">
+                      {profile.name?.substring(0, 2).toUpperCase() || "??"}
+                    </AvatarFallback>
+                  </>
+                )}
+              </Avatar>
+            </div>
+            <label className="absolute bottom-1 right-1 bg-study-primary text-white p-2.5 rounded-full cursor-pointer shadow-lg border-2 border-white hover:scale-110 transition-transform active:scale-95">
               <Camera size={20} />
-              <input type="file" className="hidden" accept="image/*" onChange={() => {}} />
+              <input 
+                type="file" 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleAvatarUpload} 
+                disabled={uploading}
+              />
             </label>
           </div>
-          <p className="mt-4 text-study-medium font-bold text-xs uppercase">{user?.email}</p>
+          <p className="mt-4 text-study-medium font-bold text-xs uppercase tracking-widest">{user?.email}</p>
         </div>
 
         <div className="space-y-8">
-          {/* Formulário Completo de Informações */}
           <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem]">
             <CardHeader className="bg-study-light/20 pb-4">
               <CardTitle className="text-base flex items-center gap-2">
@@ -146,7 +200,6 @@ const ProfilePage = () => {
             </CardContent>
           </Card>
 
-          {/* Histórico de Simulados */}
           <div className="space-y-4">
             <h2 className="text-lg font-black text-study-dark dark:text-white flex items-center gap-2 px-2">
               <History className="text-study-primary" size={20} /> Histórico de Simulados
