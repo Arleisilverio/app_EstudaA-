@@ -15,17 +15,22 @@ serve(async (req) => {
 
   try {
     const { subjectId, query, action } = await req.json()
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
+    
+    // Buscando a chave com o nome exato configurado nos segredos
+    const GEMINI_API_KEY = Deno.env.get('Gemini API Key') || Deno.env.get('GEMINI_API_KEY')
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
     const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    console.log(`[chat-with-gemini] Iniciando. Matéria: ${subjectId}`);
+    console.log(`[chat-with-gemini] Processando matéria: ${subjectId}`);
 
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada.");
+    if (!GEMINI_API_KEY) {
+      console.error("[chat-with-gemini] ERRO: Chave Gemini API Key não encontrada nos Segredos.");
+      throw new Error("Configuração incompleta: Chave de API não encontrada.");
+    }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
 
-    // 1. Buscar arquivos
+    // 1. Buscar documentos da matéria
     const { data: documents, error: dbError } = await supabase
       .from('documents')
       .select('name, file_path')
@@ -35,10 +40,9 @@ serve(async (req) => {
 
     const parts = []
 
-    // 2. Processar Documentos
+    // 2. Anexar arquivos ao contexto da IA
     if (documents && documents.length > 0) {
       for (const doc of documents) {
-        console.log(`[chat-with-gemini] Lendo: ${doc.name}`);
         const { data: fileBlob } = await supabase.storage.from('documents').download(doc.file_path)
 
         if (fileBlob) {
@@ -56,34 +60,40 @@ serve(async (req) => {
       }
     }
 
-    // 3. Prompt
-    const prompt = `Você é o Professor Virtual do Estuda AÍ.
-    Ação: ${action || 'chat'}
-    Contexto: Responda em Português-BR com base nos documentos.
-    Pergunta: ${query}`;
-
-    parts.push({ text: prompt })
-
-    // 4. Chamada à API (Usando v1 e gemini-1.5-flash-latest para maior compatibilidade)
-    console.log("[chat-with-gemini] Chamando Gemini API...");
+    // 3. Definir o comportamento do Professor
+    const instruction = `Você é o Professor Virtual do sistema Estuda AÍ.
+    Sua tarefa é: ${action === 'summary' ? 'Gerar um resumo didático' : action === 'quiz' ? 'Criar um simulado de 5 questões' : 'Responder a dúvida do aluno'}.
     
-    // Tentamos primeiro a v1 que é mais estável
+    IMPORTANTE:
+    - Baseie-se prioritariamente nos documentos anexados.
+    - Se a informação não estiver neles, use seu conhecimento acadêmico.
+    - Responda de forma clara e organizada em Português-BR.
+    
+    PERGUNTA/COMANDO: ${query}`;
+
+    parts.push({ text: instruction })
+
+    // 4. Chamada para a API do Google (Versão Estável v1)
+    console.log("[chat-with-gemini] Enviando para Gemini 1.5 Flash...");
+    
     const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: parts }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        }
       })
     })
 
     const result = await response.json()
 
     if (!response.ok) {
-      console.error("[chat-with-gemini] Erro detalhado:", result);
-      // Se o erro for de modelo não encontrado, avisamos o usuário para verificar a chave
+      console.error("[chat-with-gemini] Erro na API do Google:", JSON.stringify(result));
       return new Response(JSON.stringify({ 
-        text: `Erro de configuração na IA: ${result.error?.message || 'Modelo não suportado'}. Verifique se sua chave de API tem acesso ao Gemini 1.5 Flash.`,
+        text: "Desculpe, tive um problema técnico ao acessar meu banco de conhecimentos. Por favor, tente novamente em alguns segundos.",
         sources: []
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
     }
@@ -91,13 +101,16 @@ serve(async (req) => {
     const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text
 
     return new Response(JSON.stringify({ 
-      text: aiResponse || "O professor não conseguiu formular uma resposta agora.",
+      text: aiResponse || "Não consegui gerar uma resposta para essa dúvida agora.",
       sources: documents?.map(d => d.name) || []
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
 
   } catch (err) {
-    console.error(`[chat-with-gemini] Erro: ${err.message}`);
-    return new Response(JSON.stringify({ text: "Erro no servidor da IA. Tente novamente." }), { 
+    console.error(`[chat-with-gemini] Erro Crítico: ${err.message}`);
+    return new Response(JSON.stringify({ 
+      text: "Ocorreu um erro interno. Verifique se os arquivos foram enviados corretamente.",
+      error: err.message 
+    }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
       status: 200 
     })
