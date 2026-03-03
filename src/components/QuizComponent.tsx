@@ -51,7 +51,6 @@ const QuizComponent = ({ questions, onClose, subjectId }: QuizProps) => {
     const score = calculateScore();
 
     try {
-      // Buscar nome da matéria para o histórico
       const { data: subject } = await supabase.from('subjects').select('name').eq('id', subjectId).single();
 
       const { error } = await supabase.from('quiz_history').insert([{
@@ -66,7 +65,7 @@ const QuizComponent = ({ questions, onClose, subjectId }: QuizProps) => {
       setShowResults(true);
     } catch (err) {
       toast.error("Erro ao salvar resultado no histórico.");
-      setShowResults(true); // Mostra o resultado mesmo se falhar o salvamento
+      setShowResults(true);
     } finally {
       setSaving(false);
     }
@@ -98,33 +97,43 @@ const QuizComponent = ({ questions, onClose, subjectId }: QuizProps) => {
           </div>
 
           <div className="space-y-6">
-            <h3 className="font-bold text-study-dark dark:text-white flex items-center gap-2">
-              <HelpCircle size={20} className="text-study-primary" />
-              Revisão
+            <h3 className="font-bold text-study-dark dark:text-white flex items-center gap-2 text-lg">
+              <HelpCircle size={22} className="text-study-primary" />
+              Revisão Comentada
             </h3>
             {questions.map((q, idx) => {
               const isCorrect = answers[q.id] === q.correctIndex;
               return (
                 <div key={q.id} className={cn(
-                  "p-5 rounded-2xl border-2",
-                  isCorrect ? "border-green-100 bg-green-50/30 dark:border-green-900/20" : "border-red-100 bg-red-50/30 dark:border-red-900/20"
+                  "p-6 rounded-2xl border-2 transition-colors",
+                  isCorrect 
+                    ? "border-green-200 bg-green-50/40 dark:border-green-900/30 dark:bg-green-950/20" 
+                    : "border-red-200 bg-red-50/40 dark:border-red-900/30 dark:bg-red-950/20"
                 )}>
-                  <div className="flex gap-3 mb-2">
-                    <p className="font-bold text-sm text-study-dark dark:text-zinc-200">{idx + 1}. {q.question}</p>
+                  <div className="flex gap-3 mb-3">
+                    <p className="font-bold text-base text-study-dark dark:text-zinc-100 leading-tight">
+                      {idx + 1}. {q.question}
+                    </p>
                   </div>
+                  
                   {!isCorrect && (
-                    <div className="space-y-1 mb-2">
-                      <p className="text-xs text-red-600 font-medium">Sua resposta: {q.options[answers[q.id]]}</p>
-                      <p className="text-xs text-green-600 font-bold">Correta: {q.options[q.correctIndex]}</p>
+                    <div className="space-y-1 mb-3">
+                      <p className="text-sm text-red-600 dark:text-red-400 font-medium">Sua resposta: {q.options[answers[q.id]]}</p>
+                      <p className="text-sm text-green-600 dark:text-green-400 font-bold">Correta: {q.options[q.correctIndex]}</p>
                     </div>
                   )}
-                  <p className="text-[11px] text-study-medium italic"><strong>Ex:</strong> {q.explanation}</p>
+                  
+                  <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/5">
+                    <p className="text-sm text-study-dark/80 dark:text-zinc-300 leading-relaxed">
+                      <strong className="text-study-primary">Explicação:</strong> {q.explanation}
+                    </p>
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          <Button onClick={onClose} className="w-full bg-study-primary rounded-2xl py-8 font-black">
+          <Button onClick={onClose} className="w-full bg-study-primary hover:bg-study-dark rounded-2xl py-8 font-black text-lg transition-all shadow-lg active:scale-95">
             Finalizar e Limpar Chat
           </Button>
         </CardContent>
