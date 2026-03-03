@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import NotificationList from './NotificationList';
-import { differenceInDays, parseISO, isAfter, startOfDay } from 'date-fns';
+import { differenceInDays, parseISO, startOfDay } from 'date-fns';
 
 const HomeHeader = () => {
   const { user } = useAuth();
@@ -25,7 +25,6 @@ const HomeHeader = () => {
     try {
       setLoading(true);
       
-      // 1. Carregar Perfil
       const { data: profileData } = await supabase
         .from('profiles')
         .select('name, course, period, avatar_url')
@@ -34,7 +33,6 @@ const HomeHeader = () => {
       
       if (profileData) setProfile(profileData);
 
-      // 2. Carregar Provas para Alertas
       const today = startOfDay(new Date());
       const { data: examsData } = await supabase
         .from('exams')
@@ -42,20 +40,19 @@ const HomeHeader = () => {
         .order('date', { ascending: true });
 
       if (examsData) {
-        // Filtrar: data não passou E falta menos de 3 dias (0, 1 ou 2 dias)
+        // Regra: Aparecer 2 dias antes, 1 dia antes e no próprio dia.
+        // Sumir assim que a data passar (diff < 0).
         const relevantAlerts = examsData.filter(exam => {
-          const examDate = parseISO(exam.date);
+          const examDate = startOfDay(parseISO(exam.date));
           const diff = differenceInDays(examDate, today);
           
-          // Regra: Não mostrar se a data passou (diff < 0)
-          // Regra: Mostrar se faltar 2 dias ou menos (diff <= 2)
           return diff >= 0 && diff <= 2;
         });
         
         setNotifications(relevantAlerts);
       }
     } catch (err) {
-      console.error("Erro ao carregar dados no header:", err);
+      console.error("Erro ao carregar notificações:", err);
     } finally {
       setLoading(false);
     }
@@ -100,7 +97,7 @@ const HomeHeader = () => {
           <button className="relative p-3.5 bg-study-light/10 dark:bg-zinc-800 rounded-2xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 group">
             <Bell size={22} className={notifications.length > 0 ? "group-hover:animate-bounce" : ""} />
             {notifications.length > 0 && (
-              <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-zinc-800 rounded-full animate-pulse" />
+              <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-zinc-900 rounded-full animate-pulse" />
             )}
           </button>
         </PopoverTrigger>

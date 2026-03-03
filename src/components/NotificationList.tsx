@@ -1,8 +1,8 @@
 "use client";
 
 import React from 'react';
-import { ClipboardCheck, Calendar, X, BellOff } from 'lucide-react';
-import { format, isAfter, parseISO, differenceInDays } from 'date-fns';
+import { ClipboardCheck, Calendar, BellOff } from 'lucide-react';
+import { format, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,13 +19,14 @@ interface NotificationListProps {
 
 const NotificationList = ({ notifications }: NotificationListProps) => {
   const navigate = useNavigate();
+  const today = startOfDay(new Date());
 
   return (
     <div className="w-80 max-h-[400px] overflow-hidden flex flex-col bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-study-light/20 dark:border-white/5 animate-in fade-in zoom-in-95 duration-200">
       <div className="p-4 border-b border-study-light/20 dark:border-zinc-800 bg-study-primary/5 flex items-center justify-between">
         <h3 className="font-black text-study-dark dark:text-white text-sm uppercase tracking-wider">Alertas de Provas</h3>
         <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-          {notifications.length} {notifications.length === 1 ? 'pendente' : 'pendentes'}
+          {notifications.length}
         </span>
       </div>
 
@@ -38,7 +39,8 @@ const NotificationList = ({ notifications }: NotificationListProps) => {
         ) : (
           <div className="flex flex-col gap-2">
             {notifications.map((exam) => {
-              const daysLeft = differenceInDays(parseISO(exam.date), new Date());
+              const examDate = startOfDay(parseISO(exam.date));
+              const daysLeft = differenceInDays(examDate, today);
               
               return (
                 <button
@@ -55,7 +57,7 @@ const NotificationList = ({ notifications }: NotificationListProps) => {
                     </p>
                     <div className="flex items-center gap-2 text-[10px] text-study-medium dark:text-zinc-400 mt-1 font-bold">
                       <Calendar size={12} />
-                      {format(parseISO(exam.date), "dd 'de' MMM", { locale: ptBR })}
+                      {format(examDate, "dd 'de' MMM", { locale: ptBR })}
                       <span>•</span>
                       <span className="text-red-500 uppercase tracking-tighter">
                         {daysLeft === 0 ? 'É HOJE!' : daysLeft === 1 ? 'É AMANHÃ!' : `Faltam ${daysLeft} dias`}
