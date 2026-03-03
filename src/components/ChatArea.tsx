@@ -24,6 +24,7 @@ const ChatArea = () => {
     setResponse(null);
 
     try {
+      // Usando o URL completo da função conforme as diretrizes do Supabase
       const { data, error } = await supabase.functions.invoke('chat-with-gemini', {
         body: { 
           subjectId, 
@@ -37,7 +38,7 @@ const ChatArea = () => {
       if (actionType === 'chat') setQuery("");
     } catch (err: any) {
       console.error("Erro na IA:", err);
-      toast.error("O professor virtual está indisponível no momento. Verifique sua chave de API.");
+      toast.error("O professor virtual não conseguiu responder. Verifique se o arquivo é legível.");
     } finally {
       setIsLoading(false);
     }
@@ -157,35 +158,6 @@ const ChatArea = () => {
                 </div>
               </CardContent>
             </Card>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => handleAction('summary')}
-                className="h-auto py-4 rounded-xl border-study-light dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-study-light/20 dark:hover:bg-zinc-800 flex flex-col gap-2 group transition-all"
-              >
-                <div className="bg-study-light dark:bg-zinc-800 p-2 rounded-lg group-hover:bg-white dark:group-hover:bg-zinc-700 transition-colors">
-                  <BookOpen size={20} className="text-study-primary" />
-                </div>
-                <div className="text-center">
-                  <p className="font-bold text-study-dark dark:text-zinc-200 text-sm">Novo Resumo</p>
-                  <p className="text-[10px] text-study-medium dark:text-zinc-500">Recriar síntese</p>
-                </div>
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => handleAction('quiz')}
-                className="h-auto py-4 rounded-xl border-study-light dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-study-light/20 dark:hover:bg-zinc-800 flex flex-col gap-2 group transition-all"
-              >
-                <div className="bg-study-light dark:bg-zinc-800 p-2 rounded-lg group-hover:bg-white dark:group-hover:bg-zinc-700 transition-colors">
-                  <GraduationCap size={20} className="text-study-primary" />
-                </div>
-                <div className="text-center">
-                  <p className="font-bold text-study-dark dark:text-zinc-200 text-sm">Novo Simulado</p>
-                  <p className="text-[10px] text-study-medium dark:text-zinc-500">Outras 5 questões</p>
-                </div>
-              </Button>
-            </div>
           </motion.div>
         )}
 
