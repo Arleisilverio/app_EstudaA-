@@ -59,22 +59,29 @@ const ProfilePage = () => {
       const file = event.target.files?.[0];
       if (!file) return;
 
+      // Usamos um nome fixo 'avatar' dentro da pasta do usuário para manter o storage limpo
       const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+      const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
 
-      // Upload para o bucket
+      // Upload para o bucket 'announcements' (usado para storage geral)
       const { error: uploadError } = await supabase.storage
         .from('announcements')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          upsert: true,
+          cacheControl: '3600'
+        });
 
       if (uploadError) throw uploadError;
 
+      // Obter URL pública
       const { data: { publicUrl } } = supabase.storage
         .from('announcements')
         .getPublicUrl(filePath);
 
+      // Atualizar estado local
       setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
       
+      // Salvar URL no perfil do banco de dados
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
@@ -83,7 +90,10 @@ const ProfilePage = () => {
       if (updateError) throw updateError;
 
       toast.success("Foto de perfil atualizada!");
+      // Pequeno delay para garantir que a imagem seja renderizada
+      setTimeout(() => fetchProfile(), 500);
     } catch (error: any) {
+      console.error("Erro upload:", error);
       toast.error("Erro ao carregar imagem: " + error.message);
     } finally {
       setUploading(false);
