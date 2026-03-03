@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Save, User, Loader2, History, Trash2, Award, Calendar, GraduationCap, Image as ImageIcon } from 'lucide-react';
+import { Camera, Save, User, Loader2, History, Trash2, Award } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,14 +54,15 @@ const ProfilePage = () => {
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
+      if (!user) return;
       setUploading(true);
       const file = event.target.files?.[0];
       if (!file) return;
 
       const fileExt = file.name.split('.').pop();
-      const filePath = `${user?.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${user.id}/${Math.random()}.${fileExt}`;
 
-      // Upload da imagem para o bucket 'announcements' (usando o mesmo bucket existente para simplificar)
+      // Upload para o bucket
       const { error: uploadError } = await supabase.storage
         .from('announcements')
         .upload(filePath, file);
@@ -72,13 +73,12 @@ const ProfilePage = () => {
         .from('announcements')
         .getPublicUrl(filePath);
 
-      // Atualiza o estado local e o banco de dados
       setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
       
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
-        .eq('id', user?.id);
+        .eq('id', user.id);
 
       if (updateError) throw updateError;
 
@@ -100,13 +100,15 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
+    if (!user) return;
     setSaving(true);
     const { error } = await supabase.from('profiles').upsert({ 
-      id: user?.id, 
+      id: user.id, 
       ...profile, 
       updated_at: new Date().toISOString() 
     });
     if (!error) toast.success("Perfil atualizado!");
+    else toast.error("Erro ao salvar perfil");
     setSaving(false);
   };
 
