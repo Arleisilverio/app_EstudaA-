@@ -16,21 +16,24 @@ serve(async (req) => {
   try {
     const { subjectId, query, action } = await req.json()
     
-    // Buscando a chave com o nome exato configurado nos segredos
-    const GEMINI_API_KEY = Deno.env.get('Gemini API Key') || Deno.env.get('GEMINI_API_KEY')
+    // Tenta pegar a chave de várias formas possíveis (Supabase às vezes normaliza nomes)
+    const GEMINI_API_KEY = Deno.env.get('Gemini API Key') || 
+                           Deno.env.get('GEMINI_API_KEY') || 
+                           Deno.env.get('gemini_api_key');
+                           
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
     const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    console.log(`[chat-with-gemini] Processando matéria: ${subjectId}`);
-
     if (!GEMINI_API_KEY) {
-      console.error("[chat-with-gemini] ERRO: Chave Gemini API Key não encontrada nos Segredos.");
-      throw new Error("Configuração incompleta: Chave de API não encontrada.");
+      return new Response(JSON.stringify({ 
+        text: "Erro: Chave 'Gemini API Key' não encontrada nos segredos da função. Verifique o nome no painel do Supabase.",
+        sources: []
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
     }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
 
-    // 1. Buscar documentos da matéria
+    // 1. Buscar documentos
     const { data: documents, error: dbError } = await supabase
       .from('documents')
       .select('name, file_path')
@@ -39,15 +42,24 @@ serve(async (req) => {
     if (dbError) throw dbError
 
     const parts = []
+    let totalSize = 0;
 
-    // 2. Anexar arquivos ao contexto da IA
+    // 2. Anexar arquivos (com verificação de tamanho)
     if (documents && documents.length > 0) {
       for (const doc of documents) {
         const { data: fileBlob } = await supabase.storage.from('documents').download(doc.file_path)
 
         if (fileBlob) {
           const arrayBuffer = await fileBlob.arrayBuffer()
-          const base64 = encodeBase64(new Uint8Array(arrayBuffer))
+          const uint8 = new Uint8Array(arrayBuffer)
+          
+          // Se o arquivo codificado passar de ~18MB, a Google vai rejeitar
+          if (uint8.length > 15 * 1024 * 1024) {
+             console.warn(`[chat-with-gemini] Arquivo ${doc.name} ignorado por ser grande demais para o chat direto.`);
+             continue;
+          }
+
+          const base64 = encodeBase64(uint8)
           const isPdf = doc.name.toLowerCase().endsWith('.pdf')
 
           parts.push({
@@ -60,40 +72,41 @@ serve(async (req) => {
       }
     }
 
-    // 3. Definir o comportamento do Professor
-    const instruction = `Você é o Professor Virtual do sistema Estuda AÍ.
-    Sua tarefa é: ${action === 'summary' ? 'Gerar um resumo didático' : action === 'quiz' ? 'Criar um simulado de 5 questões' : 'Responder a dúvida do aluno'}.
+    // 3. Prompt
+    const instruction = `Você é o Professor Virtual do Estuda AÍ.
+    Objetivo: ${action === 'summary' ? 'Resumir material' : action === 'quiz' ? 'Gerar 5 questões' : 'Responder dúvida'}.
+    Responda em Português-BR usando os documentos anexados como base prioritária.
     
-    IMPORTANTE:
-    - Baseie-se prioritariamente nos documentos anexados.
-    - Se a informação não estiver neles, use seu conhecimento acadêmico.
-    - Responda de forma clara e organizada em Português-BR.
-    
-    PERGUNTA/COMANDO: ${query}`;
+    PERGUNTA: ${query}`;
 
     parts.push({ text: instruction })
 
-    // 4. Chamada para a API do Google (Versão Estável v1)
-    console.log("[chat-with-gemini] Enviando para Gemini 1.5 Flash...");
-    
+    // 4. Chamada para a API
     const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: parts }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
       })
     })
 
     const result = await response.json()
 
     if (!response.ok) {
-      console.error("[chat-with-gemini] Erro na API do Google:", JSON.stringify(result));
+      console.error("[chat-with-gemini] Erro Google API:", result);
+      const errorMsg = result.error?.message || "Erro desconhecido na API do Google.";
+      
+      // Se for erro de tamanho, damos uma explicação melhor
+      if (errorMsg.includes("request is too large") || response.status === 413) {
+        return new Response(JSON.stringify({ 
+          text: "O arquivo PDF é muito grande (muitas imagens ou páginas complexas) para ser processado via chat direto. Tente enviar um arquivo menor ou em formato texto.",
+          sources: []
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
+      }
+
       return new Response(JSON.stringify({ 
-        text: "Desculpe, tive um problema técnico ao acessar meu banco de conhecimentos. Por favor, tente novamente em alguns segundos.",
+        text: `O Professor Virtual teve um erro técnico: ${errorMsg}`,
         sources: []
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
     }
@@ -101,16 +114,13 @@ serve(async (req) => {
     const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text
 
     return new Response(JSON.stringify({ 
-      text: aiResponse || "Não consegui gerar uma resposta para essa dúvida agora.",
+      text: aiResponse || "Não consegui gerar uma resposta.",
       sources: documents?.map(d => d.name) || []
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
 
   } catch (err) {
     console.error(`[chat-with-gemini] Erro Crítico: ${err.message}`);
-    return new Response(JSON.stringify({ 
-      text: "Ocorreu um erro interno. Verifique se os arquivos foram enviados corretamente.",
-      error: err.message 
-    }), { 
+    return new Response(JSON.stringify({ text: `Erro interno: ${err.message}` }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
       status: 200 
     })
