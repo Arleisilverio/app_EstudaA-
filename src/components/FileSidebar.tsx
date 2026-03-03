@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, Trash2, File, Loader2, ChevronLeft, Pencil, Save, X, CheckCircle2 } from 'lucide-react';
+import { Upload, FileText, Trash2, File, Loader2, Pencil, Save, X, CheckCircle2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { toast } from "sonner";
 
 interface Document {
@@ -21,7 +21,6 @@ interface Document {
 const FileSidebar = () => {
   const { isAdmin, user } = useAuth();
   const { subjectId } = useParams();
-  const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [subjectName, setSubjectName] = useState("");
@@ -150,15 +149,10 @@ const FileSidebar = () => {
   return (
     <div className="flex flex-col gap-6 w-full lg:max-w-xs">
       <div className="flex flex-col gap-1">
-        <button 
-          onClick={() => navigate('/')}
-          className="flex items-center gap-1 text-xs font-bold text-study-primary uppercase tracking-wider hover:opacity-70 mb-2"
-        >
-          <ChevronLeft size={14} /> Voltar para Home
-        </button>
         <h2 className="text-2xl font-black text-study-dark dark:text-white leading-tight">
           {subjectName || "Carregando..."}
         </h2>
+        <p className="text-[10px] text-study-medium font-bold uppercase tracking-widest">Matéria Selecionada</p>
       </div>
 
       {isAdmin && (

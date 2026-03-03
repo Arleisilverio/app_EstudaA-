@@ -4,12 +4,11 @@ import React from 'react';
 import Navbar from "@/components/Navbar";
 import FileSidebar from "@/components/FileSidebar";
 import ChatArea from "@/components/ChatArea";
-import BottomNav from "@/components/BottomNav";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 
 const StudyDashboard = () => {
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-32">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       
       <main className="container flex-1 py-8 flex flex-col lg:flex-row gap-10">
@@ -28,8 +27,6 @@ const StudyDashboard = () => {
           <MadeWithDyad />
         </div>
       </footer>
-
-      <BottomNav />
     </div>
   );
 };
