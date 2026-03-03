@@ -16,11 +16,10 @@ serve(async (req) => {
     const { subjectId, query, action } = await req.json()
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
 
-    console.log(`[chat-with-gemini] Iniciando requisição. Matéria: ${subjectId}, Ação: ${action}`);
+    console.log(`[chat-with-gemini] Iniciando. Matéria: ${subjectId}`);
 
     if (!GEMINI_API_KEY) {
-      console.error("[chat-with-gemini] ERRO: GEMINI_API_KEY não encontrada nos Secrets.");
-      return new Response(JSON.stringify({ error: 'Chave de API ausente.' }), {
+      return new Response(JSON.stringify({ error: 'Configuração GEMINI_API_KEY ausente.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
@@ -31,7 +30,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // 1. Buscar documentos
+    // 1. Buscar metadados dos documentos no banco
     const { data: documents, error: dbError } = await supabaseClient
       .from('documents')
       .select('name, file_path')
@@ -39,70 +38,68 @@ serve(async (req) => {
 
     if (dbError) throw dbError
 
-    let contextText = ""
+    // Preparar as "partes" da mensagem para o Gemini
+    const parts = []
+
+    // 2. Processar cada documento (Suporta PDF e Texto)
     if (documents && documents.length > 0) {
       for (const doc of documents) {
-        // Filtro simples: Apenas ler arquivos que pareçam texto
-        if (!doc.name.toLowerCase().endsWith('.txt') && !doc.name.toLowerCase().endsWith('.md')) {
-          console.log(`[chat-with-gemini] Pulando arquivo não-texto: ${doc.name}`);
-          continue;
-        }
-
+        console.log(`[chat-with-gemini] Lendo: ${doc.name}`);
+        
         const { data, error: storageError } = await supabaseClient
           .storage
           .from('documents')
           .download(doc.file_path)
         
         if (!storageError && data) {
-          const text = await data.text()
-          // Limitar o tamanho do texto para não estourar o limite do prompt
-          contextText += `--- ARQUIVO: ${doc.name} ---\n${text.substring(0, 10000)}\n\n`
+          const arrayBuffer = await data.arrayBuffer()
+          const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+          
+          // Determinar o tipo MIME (PDF ou Texto)
+          const isPdf = doc.name.toLowerCase().endsWith('.pdf')
+          const mimeType = isPdf ? 'application/pdf' : 'text/plain'
+
+          parts.push({
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
+            }
+          })
         }
       }
     }
 
-    console.log(`[chat-with-gemini] Contexto extraído (${contextText.length} caracteres).`);
+    // 3. Adicionar a instrução e a pergunta do aluno
+    let instruction = "Você é um Professor Virtual acadêmico. "
+    if (action === 'quiz') instruction += "Gere um simulado de 5 questões com gabarito."
+    else if (action === 'summary') instruction += "Gere um resumo detalhado em tópicos."
+    else instruction += "Responda de forma didática baseada nos arquivos fornecidos."
 
-    // 2. Instruções do Professor
-    let systemInstruction = "Você é um Professor Virtual acadêmico. "
-    if (action === 'quiz') systemInstruction += "Gere 5 questões de múltipla escolha com gabarito."
-    else if (action === 'summary') systemInstruction += "Crie um resumo em tópicos."
-    else systemInstruction += "Responda de forma didática baseada no conteúdo fornecido."
+    parts.push({ text: `INSTRUÇÃO: ${instruction}\n\nPERGUNTA DO ALUNO: ${query}` })
 
-    const prompt = `MATERIAL DE ESTUDO:\n${contextText || "Nenhum arquivo de texto encontrado. Responda com base em conhecimentos gerais de estudante."}\n\nPERGUNTA DO ALUNO: ${query}\n\nINSTRUÇÃO: ${systemInstruction}`
+    // 4. Chamar o Gemini
+    console.log(`[chat-with-gemini] Enviando ${parts.length} partes para o Gemini...`);
 
-    // 3. Chamada ao Google Gemini
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-        ]
+        contents: [{ parts: parts }]
       })
     })
 
-    const geminiData = await response.json()
+    const result = await response.json()
 
     if (!response.ok) {
-      console.error("[chat-with-gemini] Erro Google:", geminiData);
-      return new Response(JSON.stringify({ error: geminiData.error?.message || "Erro no Google" }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: response.status,
-      })
+      console.error("[chat-with-gemini] Erro Google API:", result);
+      throw new Error(result.error?.message || "Erro na API do Google");
     }
 
-    const aiResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
+    const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text
 
-    if (!aiResponse) {
-      const reason = geminiData.promptFeedback?.blockReason || "Filtro de segurança do Google";
-      console.warn(`[chat-with-gemini] Resposta bloqueada. Motivo: ${reason}`);
+    if (!aiText) {
       return new Response(JSON.stringify({ 
-        text: `O Professor Virtual não pôde responder este tópico específico (Motivo: ${reason}). Tente perguntar de outra forma ou verifique se o material é legível.`,
+        text: "O material enviado é muito complexo ou está protegido. Tente usar arquivos PDF com texto selecionável ou arquivos .txt.",
         sources: []
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -110,9 +107,8 @@ serve(async (req) => {
       })
     }
 
-    console.log("[chat-with-gemini] Resposta gerada com sucesso.");
     return new Response(JSON.stringify({ 
-      text: aiResponse,
+      text: aiText,
       sources: documents?.map(d => d.name) || []
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -120,7 +116,7 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    console.error(`[chat-with-gemini] Erro Crítico: ${error.message}`);
+    console.error(`[chat-with-gemini] ERRO: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
