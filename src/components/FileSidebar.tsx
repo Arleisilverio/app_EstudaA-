@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, Trash2, File, Loader2, ChevronLeft, Pencil, Save, X } from 'lucide-react';
+import { Upload, FileText, Trash2, File, Loader2, ChevronLeft, Pencil, Save, X, CheckCircle2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -78,20 +77,15 @@ const FileSidebar = () => {
       const fileName = `${subjectId}-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Upload para o Storage
-      const { error: uploadError, data: uploadData } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
         });
 
-      if (uploadError) {
-        console.error("Erro no Storage:", uploadError);
-        throw new Error(`Erro no Storage: ${uploadError.message}`);
-      }
+      if (uploadError) throw new Error(`Erro no Storage: ${uploadError.message}`);
 
-      // Registro na Tabela
       const { error: dbError } = await supabase
         .from('documents')
         .insert([{
@@ -102,19 +96,15 @@ const FileSidebar = () => {
           status: 'ready'
         }]);
 
-      if (dbError) {
-        console.error("Erro no Banco:", dbError);
-        throw new Error(`Erro no Banco: ${dbError.message}`);
-      }
+      if (dbError) throw new Error(`Erro no Banco: ${dbError.message}`);
 
       toast.success("Documento adicionado com sucesso!");
       fetchDocuments();
     } catch (err: any) {
       console.error("Erro completo:", err);
-      toast.error(err.message || "Erro desconhecido ao enviar arquivo");
+      toast.error(err.message || "Erro ao enviar arquivo");
     } finally {
       setIsUploading(false);
-      // Limpar o input para permitir subir o mesmo arquivo novamente se necessário
       event.target.value = '';
     }
   };
@@ -144,18 +134,12 @@ const FileSidebar = () => {
   const removeDoc = async (id: string) => {
     if (!confirm("Excluir este documento da base de conhecimento?")) return;
     try {
-      // 1. Buscar info do arquivo para deletar do storage também
       const { data: doc } = await supabase.from('documents').select('file_path').eq('id', id).single();
-      
-      // 2. Deletar do Banco
       const { error: dbError } = await supabase.from('documents').delete().eq('id', id);
       if (dbError) throw dbError;
-
-      // 3. Deletar do Storage (opcional, mas recomendado)
       if (doc?.file_path) {
         await supabase.storage.from('documents').remove([doc.file_path]);
       }
-
       setDocuments(docs => docs.filter(d => d.id !== id));
       toast.success("Documento removido");
     } catch (err) {
@@ -196,13 +180,7 @@ const FileSidebar = () => {
                 </p>
                 <p className="text-[10px] text-study-medium dark:text-zinc-500 font-medium">PDF, DOCX ou TXT</p>
               </div>
-              <input 
-                type="file" 
-                className="hidden" 
-                onChange={handleUpload} 
-                disabled={isUploading} 
-                accept=".pdf,.docx,.txt" 
-              />
+              <input type="file" className="hidden" onChange={handleUpload} disabled={isUploading} accept=".pdf,.docx,.txt" />
             </label>
           </CardContent>
         </Card>
@@ -236,38 +214,25 @@ const FileSidebar = () => {
                       <div className="flex-1 min-w-0">
                         {editingId === doc.id ? (
                           <div className="flex items-center gap-1">
-                            <Input 
-                              value={editName} 
-                              onChange={(e) => setEditName(e.target.value)}
-                              className="h-7 text-xs rounded-lg"
-                              autoFocus
-                            />
+                            <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-7 text-xs rounded-lg" autoFocus />
                             <button onClick={() => saveRename(doc.id)} className="text-green-500 p-1"><Save size={14} /></button>
                             <button onClick={() => setEditingId(null)} className="text-red-400 p-1"><X size={14} /></button>
                           </div>
                         ) : (
                           <>
                             <p className="text-xs font-bold text-study-dark dark:text-zinc-200 truncate">{doc.name}</p>
-                            <p className="text-[9px] text-green-600 dark:text-green-500 font-black uppercase tracking-tighter">Indexado na Base</p>
+                            <div className="flex items-center gap-1">
+                              <CheckCircle2 size={10} className="text-green-500" />
+                              <p className="text-[9px] text-green-600 dark:text-green-500 font-black uppercase tracking-tighter">Indexado</p>
+                            </div>
                           </>
                         )}
                       </div>
                     </div>
-                    
                     {isAdmin && !editingId && (
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1 border-t border-study-light/20 pt-1">
-                        <button 
-                          onClick={() => startEditing(doc)}
-                          className="p-1.5 text-study-medium hover:text-study-primary hover:bg-study-light/30 rounded-lg transition-all"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button 
-                          onClick={() => removeDoc(doc.id)}
-                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        <button onClick={() => startEditing(doc)} className="p-1.5 text-study-medium hover:text-study-primary hover:bg-study-light/30 rounded-lg"><Pencil size={12} /></button>
+                        <button onClick={() => removeDoc(doc.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 size={12} /></button>
                       </div>
                     )}
                   </div>
