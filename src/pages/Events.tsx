@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Ticket, Calendar, MapPin, Plus, Pencil, Trash2, 
   Loader2, Save, Image as ImageIcon, FileText, 
-  ExternalLink, X, Upload
+  ExternalLink, X, Upload, Clock
 } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -215,6 +215,9 @@ const EventsPage = () => {
                       <Calendar size={14} className="text-study-primary shrink-0" /> {format(parseISO(event.date), "dd 'de' MMM", { locale: ptBR })}
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-bold text-study-dark dark:text-zinc-200 uppercase truncate">
+                      <Clock size={14} className="text-study-primary shrink-0" /> {event.time ? event.time.substring(0, 5) : "---"}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-study-dark dark:text-zinc-200 uppercase truncate col-span-2">
                       <MapPin size={14} className="text-study-primary shrink-0" /> {event.location || "Local a definir"}
                     </div>
                   </div>
