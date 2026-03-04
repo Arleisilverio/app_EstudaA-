@@ -51,29 +51,44 @@ const FeedbackSection = () => {
 
     setSending(true);
     try {
-      // 1. Inserir no banco
-      const { data, error } = await supabase.from('app_feedback').insert([{
-        user_id: user?.id,
-        rating,
-        comment
-      }]).select('*, profiles(name)').single();
+      // 1. Primeiro buscamos o nome atual do perfil do usuário para garantir a exibição local
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', user?.id)
+        .single();
 
-      if (error) throw error;
+      // 2. Inserimos o feedback
+      const { data: insertedData, error: insertError } = await supabase
+        .from('app_feedback')
+        .insert([{
+          user_id: user?.id,
+          rating,
+          comment
+        }])
+        .select()
+        .single();
 
-      // 2. Atualizar estado local instantaneamente com o retorno do banco
-      // Se por algum motivo o join 'profiles(name)' não vier no insert, fazemos um fallback
-      const newFeedback = data as any;
+      if (insertError) throw insertError;
+
+      // 3. Criamos o objeto de feedback completo para atualizar a UI instantaneamente
+      const newFeedback: Feedback = {
+        ...insertedData,
+        profiles: { name: profileData?.name || "Estudante" }
+      };
+
       setFeedbacks(prev => [newFeedback, ...prev]);
-
+      
       toast.success("Obrigado pelo seu feedback!");
       setComment("");
       setRating(0);
-      
-      // 3. Opcional: Re-sincronizar após um pequeno delay para garantir consistência
-      setTimeout(() => fetchFeedbacks(), 1000);
-    } catch (err) {
+
+      // Sincroniza com o servidor após 2 segundos para garantir que tudo está ok
+      setTimeout(() => fetchFeedbacks(), 2000);
+
+    } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao enviar avaliação.");
+      toast.error("Erro ao enviar avaliação: " + err.message);
     } finally {
       setSending(false);
     }
@@ -97,7 +112,7 @@ const FeedbackSection = () => {
 
       <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
         <CardHeader className="bg-study-light/20 pb-4">
-          <CardTitle className="text-sm font-black flex items-center gap-2">
+          <CardTitle className="text-sm font-black flex items-center gap-2 text-study-dark">
             O que você está achando?
           </CardTitle>
         </CardHeader>
@@ -124,7 +139,7 @@ const FeedbackSection = () => {
             placeholder="Sua opinião nos ajuda a melhorar..." 
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="rounded-xl border-zinc-800 bg-zinc-800/30 min-h-[100px]"
+            className="rounded-xl border-zinc-800 bg-zinc-800/30 min-h-[100px] text-white"
           />
 
           <Button 
@@ -140,7 +155,10 @@ const FeedbackSection = () => {
 
       <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
         <CardHeader className="border-b border-zinc-800">
-          <CardTitle className="text-xs font-bold text-study-medium uppercase tracking-wider">Últimas Avaliações</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xs font-bold text-study-medium uppercase tracking-wider">Últimas Avaliações</CardTitle>
+            <Button variant="ghost" size="sm" onClick={fetchFeedbacks} className="h-6 text-[9px] uppercase font-bold text-study-primary">Atualizar</Button>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="h-[400px] w-full p-4">
