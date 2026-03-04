@@ -98,13 +98,13 @@ const ChatArea = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 flex-1 w-full max-w-3xl mx-auto pb-20">
+    <div className="flex flex-col gap-6 flex-1 w-full max-w-3xl mx-auto pb-20 px-4">
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-study-dark dark:text-white flex items-center gap-2">
           Professor Virtual
           <Sparkles className="text-study-primary" size={20} />
         </h2>
-        <p className="text-study-medium dark:text-zinc-400">Consultando apenas o material oficial desta matéria.</p>
+        <p className="text-study-medium dark:text-zinc-400 text-sm">Consultando apenas o material oficial desta matéria.</p>
       </div>
 
       {!currentQuiz && !isLoading && (
@@ -112,14 +112,14 @@ const ChatArea = () => {
           <Button 
             variant="outline" 
             onClick={() => handleAction('quiz', "Gere um simulado interativo sobre a matéria.")}
-            className="w-full h-auto py-6 rounded-2xl border-study-primary/20 bg-study-primary/5 hover:bg-study-primary/10 dark:bg-zinc-900/40 dark:border-zinc-800 flex items-center gap-3 group transition-all"
+            className="w-full h-auto py-6 px-4 sm:px-6 rounded-2xl border-study-primary/20 bg-study-primary/5 hover:bg-study-primary/10 dark:bg-zinc-900/40 dark:border-zinc-800 flex items-center gap-3 group transition-all overflow-hidden"
           >
-            <div className="bg-study-primary p-3 rounded-xl text-white">
-              <GraduationCap size={24} />
+            <div className="bg-study-primary p-2.5 sm:p-3 rounded-xl text-white shrink-0">
+              <GraduationCap size={22} className="sm:size-[24px]" />
             </div>
-            <div className="text-left">
-              <p className="font-bold text-study-dark dark:text-zinc-100 text-lg">Gerar Simulado</p>
-              <p className="text-xs text-study-medium dark:text-zinc-500">Simulado personalizado de 10 a 20 questões (Máx 1/dia)</p>
+            <div className="text-left min-w-0">
+              <p className="font-bold text-study-dark dark:text-zinc-100 text-base sm:text-lg truncate">Gerar Simulado</p>
+              <p className="text-[10px] sm:text-xs text-study-medium dark:text-zinc-500 line-clamp-1">Simulado personalizado de 10 a 20 questões (Máx 1/dia)</p>
             </div>
           </Button>
         </div>
@@ -134,17 +134,17 @@ const ChatArea = () => {
             <Zap className="text-study-medium group-focus-within:text-study-primary transition-colors" size={20} />
           </div>
           <Input
-            placeholder="Tire suas dúvidas sobre o conteúdo..."
-            className="pl-12 pr-24 py-8 rounded-2xl border-none shadow-study bg-white dark:bg-zinc-900 text-lg focus-visible:ring-2 focus-visible:ring-study-primary/20 transition-all dark:text-white"
+            placeholder="Tire suas dúvidas..."
+            className="pl-12 pr-14 sm:pr-24 py-7 sm:py-8 rounded-2xl border-none shadow-study bg-white dark:bg-zinc-900 text-base sm:text-lg focus-visible:ring-2 focus-visible:ring-study-primary/20 transition-all dark:text-white"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <Button 
             type="submit"
-            className="absolute right-2 top-2 bottom-2 bg-study-primary hover:bg-study-dark text-white rounded-xl px-6 transition-all"
+            className="absolute right-1.5 top-1.5 bottom-1.5 bg-study-primary hover:bg-study-dark text-white rounded-xl px-4 sm:px-6 transition-all"
             disabled={isLoading || !query.trim()}
           >
-            {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+            {isLoading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
             <span className="ml-2 hidden sm:inline">Perguntar</span>
           </Button>
         </form>
@@ -159,16 +159,16 @@ const ChatArea = () => {
             className="flex flex-col items-center justify-center py-20 gap-4"
           >
             <Loader2 className="animate-spin text-study-primary" size={48} />
-            <p className="text-study-medium font-medium animate-pulse">O professor está preparando o material...</p>
+            <p className="text-study-medium font-medium animate-pulse text-sm">O professor está preparando o material...</p>
           </motion.div>
         )}
 
         {currentQuiz && !isLoading ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
-              <h3 className="font-black text-study-primary uppercase tracking-widest text-xs">Simulado em Andamento</h3>
-              <Button variant="ghost" size="sm" onClick={handleFinishQuiz} className="text-study-medium h-7 gap-1">
-                <X size={14} /> Cancelar
+              <h3 className="font-black text-study-primary uppercase tracking-widest text-[10px]">Simulado em Andamento</h3>
+              <Button variant="ghost" size="sm" onClick={handleFinishQuiz} className="text-study-medium h-7 gap-1 text-[10px]">
+                <X size={12} /> Cancelar
               </Button>
             </div>
             <QuizComponent 
@@ -184,8 +184,8 @@ const ChatArea = () => {
             className="space-y-6"
           >
             <Card className="border-none shadow-study bg-white dark:bg-zinc-900 overflow-hidden rounded-2xl">
-              <CardContent className="p-8">
-                <div className="prose prose-study max-w-none dark:prose-invert">
+              <CardContent className="p-5 sm:p-8">
+                <div className="prose prose-study max-w-none dark:prose-invert text-sm sm:text-base">
                   {response.text.split('\n').map((line, i) => (
                     <p key={i} className="text-study-dark dark:text-zinc-200 leading-relaxed mb-4">
                       {line}
@@ -195,12 +195,12 @@ const ChatArea = () => {
 
                 <div className="mt-8 pt-6 border-t border-study-light/30 dark:border-zinc-800">
                   <div className="flex items-center gap-2 text-study-medium dark:text-zinc-400 mb-3">
-                    <Info size={16} />
-                    <span className="text-xs font-bold uppercase tracking-wider">Fontes:</span>
+                    <Info size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Fontes:</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {response.sources.map((source, i) => (
-                      <span key={i} className="px-3 py-1 rounded-full bg-study-light/30 dark:bg-zinc-800/50 text-study-primary text-xs font-medium border border-study-light/50 dark:border-zinc-700">
+                      <span key={i} className="px-2.5 py-1 rounded-full bg-study-light/30 dark:bg-zinc-800/50 text-study-primary text-[10px] font-medium border border-study-light/50 dark:border-zinc-700">
                         {source}
                       </span>
                     ))}
@@ -208,7 +208,7 @@ const ChatArea = () => {
                 </div>
               </CardContent>
             </Card>
-            <Button onClick={() => setResponse(null)} variant="ghost" className="w-full text-study-medium">Limpar Chat</Button>
+            <Button onClick={() => setResponse(null)} variant="ghost" className="w-full text-study-medium text-xs">Limpar Chat</Button>
           </motion.div>
         )}
 
@@ -218,8 +218,8 @@ const ChatArea = () => {
             animate={{ opacity: 1 }}
             className="flex flex-col items-center justify-center py-20 text-center opacity-40"
           >
-            <Sparkles size={48} className="text-study-medium mb-4" />
-            <p className="text-lg font-medium text-study-dark dark:text-zinc-300">Pronto para uma nova ação!</p>
+            <Sparkles size={40} className="text-study-medium mb-4" />
+            <p className="text-sm font-medium text-study-dark dark:text-zinc-300">Pronto para uma nova ação!</p>
           </motion.div>
         )}
       </AnimatePresence>
