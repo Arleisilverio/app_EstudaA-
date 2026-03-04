@@ -30,7 +30,8 @@ const ChatArea = () => {
       .gte('created_at', today);
 
     if (error) return true;
-    return (count || 0) < 5;
+    // Alterado de 5 para 1 conforme solicitado para redução de custos
+    return (count || 0) < 1;
   };
 
   const handleAction = async (actionType: 'chat' | 'quiz', customQuery?: string) => {
@@ -40,7 +41,7 @@ const ChatArea = () => {
     if (actionType === 'quiz') {
       const canCreate = await checkDailyLimit();
       if (!canCreate) {
-        toast.error("Limite atingido! Você só pode gerar 5 simulados por dia nesta matéria.");
+        toast.error("Limite atingido! Você só pode gerar 1 simulado por dia nesta matéria durante o desenvolvimento.");
         return;
       }
     }
@@ -67,7 +68,6 @@ const ChatArea = () => {
 
       if (data.isQuiz) {
         try {
-          // Garante que o texto seja limpo antes de parsear
           const jsonString = data.text.trim();
           const parsed = JSON.parse(jsonString);
           if (parsed.questions && Array.isArray(parsed.questions)) {
@@ -120,7 +120,7 @@ const ChatArea = () => {
             </div>
             <div className="text-left">
               <p className="font-bold text-study-dark dark:text-zinc-100 text-lg">Gerar Simulado</p>
-              <p className="text-xs text-study-medium dark:text-zinc-500">10 questões sobre o conteúdo dos arquivos (Máx 5/dia)</p>
+              <p className="text-xs text-study-medium dark:text-zinc-500">10 questões sobre o conteúdo dos arquivos (Máx 1/dia)</p>
             </div>
           </Button>
         </div>
