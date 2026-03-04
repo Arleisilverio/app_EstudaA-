@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
+import { Loader2 } from "lucide-react";
 import Index from "./pages/Index";
 import StudyDashboard from "./pages/StudyDashboard";
 import History from "./pages/History";
@@ -22,7 +23,17 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
   
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background">Carregando...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <Loader2 className="animate-spin text-study-primary" size={48} />
+        <p className="text-sm font-bold text-study-medium uppercase tracking-widest animate-pulse">
+          Sincronizando...
+        </p>
+      </div>
+    );
+  }
+  
   if (!session) return <Navigate to="/login" replace />;
   
   return <>{children}</>;
@@ -50,7 +61,7 @@ const App = () => (
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Sonner />
+          <Sonner position="top-center" />
           <BrowserRouter>
             <AppRoutes />
           </BrowserRouter>
