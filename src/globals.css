@@ -4,77 +4,84 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%; 
+    /* Color 1: #e7edea (Fundo Principal) */
+    --background: 150 16% 92%;
+    --foreground: 232 93% 16%; 
     
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 232 93% 16%;
  
-    --popover: 210 20% 98%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 150 16% 92%;
+    --popover-foreground: 232 93% 16%;
  
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    /* Color 4: #030d4f (Primária) */
+    --primary: 232 93% 16%;
+    --primary-foreground: 150 16% 92%;
  
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Color 5: #ceecef (Secundária/Suave) */
+    --secondary: 186 45% 87%;
+    --secondary-foreground: 232 93% 16%;
  
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 186 20% 80%;
+    --muted-foreground: 232 40% 30%;
  
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Color 2: #ffc52c (Acento/Ação) */
+    --accent: 43 100% 59%;
+    --accent-foreground: 232 93% 16%;
  
-    --destructive: 0 84.2% 60.2%;
+    /* Color 3: #fb0c06 (Destrutivo) */
+    --destructive: 1 95% 50%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --border: 232 30% 85%;
+    --input: 232 30% 85%;
+    --ring: 232 93% 16%;
  
-    --radius: 1rem;
+    --radius: 1.25rem;
 
-    --study-primary: 221.2 83.2% 53.3%;
-    --study-medium: 215.4 16.3% 46.9%;
-    --study-light: 214.3 31.8% 91.4%;
-    --study-background: 210 20% 98%;
-    --study-dark: 222 47% 11%;
+    --study-primary: 232 93% 16%;
+    --study-medium: 232 40% 40%;
+    --study-light: 186 45% 87%;
+    --study-background: 150 16% 92%;
+    --study-dark: 232 93% 16%;
   }
  
   .dark {
-    --background: 222 47% 4%;
-    --foreground: 210 40% 98%;
+    /* Fundo Escuro baseado no Azul Marinho profundo (#030d4f) */
+    --background: 232 93% 8%;
+    --foreground: 150 16% 95%;
  
-    --card: 222 47% 6%;
-    --card-foreground: 210 40% 98%;
+    --card: 232 93% 12%;
+    --card-foreground: 150 16% 95%;
  
-    --popover: 222 47% 4%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 232 93% 8%;
+    --popover-foreground: 150 16% 95%;
  
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* No modo escuro, o Amarelo (#ffc52c) funciona melhor como primária para destaque */
+    --primary: 43 100% 59%;
+    --primary-foreground: 232 93% 10%;
  
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 232 50% 20%;
+    --secondary-foreground: 150 16% 95%;
  
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 232 50% 20%;
+    --muted-foreground: 150 10% 70%;
  
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 1 95% 50%;
+    --accent-foreground: 150 16% 95%;
  
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 1 95% 50%;
+    --destructive-foreground: 150 16% 95%;
  
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: 232 50% 20%;
+    --input: 232 50% 20%;
+    --ring: 43 100% 59%;
 
-    --study-primary: 217.2 91.2% 59.8%;
-    --study-medium: 215 20.2% 65.1%;
-    --study-light: 217.2 32.6% 17.5%;
-    --study-background: 222 47% 4%;
-    --study-dark: 210 40% 98%;
+    --study-primary: 43 100% 59%;
+    --study-medium: 150 10% 75%;
+    --study-light: 232 50% 25%;
+    --study-background: 232 93% 8%;
+    --study-dark: 150 16% 98%;
   }
 }
 
@@ -96,18 +103,17 @@
     width: 60%;
     max-width: 400px;
     aspect-ratio: 1;
-    background-image: url('/logo-bg.jpg'); /* Nome sugerido para o arquivo na pasta public */
+    background-image: url('/logo-bg.jpg');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    opacity: 0.04; /* Muito sutil para não atrapalhar a visão */
+    opacity: 0.05;
     pointer-events: none;
     z-index: 0;
   }
 
-  /* Ajuste automático para o modo escuro */
   .dark body::before {
-    filter: invert(1) brightness(0.8);
-    opacity: 0.02; /* Ainda mais sutil no escuro */
+    filter: invert(1) brightness(1.2);
+    opacity: 0.03;
   }
 }
