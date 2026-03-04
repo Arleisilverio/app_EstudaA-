@@ -40,31 +40,38 @@ const PromoBanner = () => {
     }
   };
 
-  const handleNavigation = (link: string, e: React.MouseEvent) => {
-    // Impedimos que o evento se propague para outros elementos
+  const handleNavigation = (link: string | null | undefined, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!link || link === '#' || link.trim() === '') return;
+    if (!link) return;
 
-    const targetLink = link.trim();
+    let targetLink = link.trim();
+    if (targetLink === '#' || targetLink === '') return;
 
-    // Verifica se é um link externo (começa com http ou parece uma URL de domínio)
-    const isExternal = targetLink.startsWith('http') || targetLink.includes('.');
-    const isInternalRoute = targetLink.startsWith('/');
+    // Se o link começa com # mas contém uma URL logo depois (ex: #https://...), removemos o #
+    if (targetLink.startsWith('#') && (targetLink.includes('http') || targetLink.includes('.'))) {
+      targetLink = targetLink.substring(1).trim();
+    }
 
-    if (isExternal && !isInternalRoute) {
-      // Garante que a URL tenha o protocolo para o window.open funcionar
+    // Verifica se é um link externo
+    const isExternal = targetLink.startsWith('http') || (targetLink.includes('.') && !targetLink.startsWith('/'));
+
+    if (isExternal) {
+      // Garante o protocolo correto
       const url = targetLink.startsWith('http') ? targetLink : `https://${targetLink}`;
       
-      // Abre em nova aba
-      const win = window.open(url, '_blank', 'noopener,noreferrer');
-      // Se win for null, o bloqueador de popups pode ter agido
-      if (!win) {
-        window.location.href = url; // Fallback para a mesma aba se bloqueado
+      try {
+        const win = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!win) {
+          window.location.href = url;
+        }
+      } catch (err) {
+        console.error("Erro ao abrir link:", err);
+        toast.error("Não foi possível abrir o link externo.");
       }
     } else {
-      // Navegação interna do React Router
+      // Navegação interna
       navigate(targetLink);
     }
   };
