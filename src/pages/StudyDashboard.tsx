@@ -23,7 +23,7 @@ const StudyDashboard = () => {
       
       <footer className="py-6 border-t bg-white/50 dark:bg-zinc-900/50">
         <div className="container flex flex-col items-center gap-2">
-          <p className="text-xs text-study-medium">© 2024 Estuda AÍ - Seu assistente acadêmico inteligente</p>
+          <p className="text-xs text-study-medium">© 2026 Estuda AÍ - Seu assistente acadêmico inteligente</p>
           <MadeWithDyad />
         </div>
       </footer>

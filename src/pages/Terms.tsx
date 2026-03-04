@@ -28,7 +28,7 @@ const TermsPage = () => {
           <div className="bg-study-primary/10 p-4 rounded-3xl mb-4">
             <ShieldCheck className="text-study-primary" size={40} />
           </div>
-          <p className="text-sm text-study-medium font-medium italic">Última atualização: 24 de Maio, 2024</p>
+          <p className="text-sm text-study-medium font-medium italic">Última atualização: Janeiro, 2026</p>
         </div>
 
         <div className="prose prose-sm prose-study max-w-none space-y-6 text-study-dark/80">

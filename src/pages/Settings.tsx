@@ -151,10 +151,9 @@ const SettingsPage = () => {
         </div>
       </div>
 
-      {/* Rodapé fixo com a versão */}
       <footer className="absolute bottom-32 left-0 right-0 text-center">
         <p className="text-[9px] font-bold text-study-medium/50 uppercase tracking-[0.2em]">
-          Estuda AÍ • Versão 1.0.24-beta • 2024
+          Estuda AÍ • Versão 1.2.26 • 2026
         </p>
       </footer>
 
