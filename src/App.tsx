@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Events from "./pages/Events";
 import Terms from "./pages/Terms";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 
@@ -43,6 +44,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
+    <Route path="/reset-password" element={<ResetPassword />} />
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
     <Route path="/study/:subjectId" element={<ProtectedRoute><StudyDashboard /></ProtectedRoute>} />
     <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />

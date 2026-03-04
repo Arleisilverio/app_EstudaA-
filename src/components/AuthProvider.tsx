@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    // Timeout de segurança: se o Supabase não responder em 5 segundos, libera o app
+    // Timeout de segurança
     const safetyTimeout = setTimeout(() => {
       if (loading) setLoading(false);
     }, 5000);
@@ -59,12 +59,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     // Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       setRole(determineRole(currentUser?.email));
       setLoading(false);
+
+      // Se o evento for de recuperação de senha, redirecionamos para a página de nova senha
+      if (event === 'PASSWORD_RECOVERY') {
+        window.location.href = '/reset-password';
+      }
     });
 
     return () => {
