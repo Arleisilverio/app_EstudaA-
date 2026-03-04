@@ -30,7 +30,6 @@ const ChatArea = () => {
       .gte('created_at', today);
 
     if (error) return true;
-    // Alterado de 5 para 1 conforme solicitado para redução de custos
     return (count || 0) < 1;
   };
 
@@ -120,7 +119,7 @@ const ChatArea = () => {
             </div>
             <div className="text-left">
               <p className="font-bold text-study-dark dark:text-zinc-100 text-lg">Gerar Simulado</p>
-              <p className="text-xs text-study-medium dark:text-zinc-500">10 questões sobre o conteúdo dos arquivos (Máx 1/dia)</p>
+              <p className="text-xs text-study-medium dark:text-zinc-500">Simulado personalizado de 10 a 20 questões (Máx 1/dia)</p>
             </div>
           </Button>
         </div>

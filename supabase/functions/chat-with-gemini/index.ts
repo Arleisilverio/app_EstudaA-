@@ -39,17 +39,14 @@ serve(async (req) => {
 
     if (docsError) throw docsError;
 
-    // 2. Baixar conteúdos em PARALELO para ganhar tempo
+    // 2. Baixar conteúdos
     let contextText = "";
     if (documents && documents.length > 0) {
-      console.log(`[${functionName}] Baixando ${documents.length} documentos em paralelo...`);
-      
       const downloadPromises = documents.map(async (doc) => {
         try {
           const { data: fileBlob, error: downloadError } = await supabase.storage.from('documents').download(doc.file_path)
           if (downloadError) return null;
           const text = await fileBlob.text();
-          // Pegamos os primeiros 8000 caracteres de cada arquivo para não estourar o limite de tempo/tokens
           return `\n--- FONTE: ${doc.name} ---\n${text.substring(0, 8000)}\n`;
         } catch (e) {
           return null;
@@ -60,20 +57,27 @@ serve(async (req) => {
       contextText = results.filter(r => r !== null).join("");
     }
 
-    // 3. Definir Prompts Otimizados
+    // 3. Definir Prompts Otimizados com a nova lógica de questões
+    const numDocs = documents?.length || 0;
+    
     let systemPrompt = `Você é o Professor Especialista do Estuda AÍ. 
     Seu objetivo é auxiliar o aluno com base nos documentos fornecidos.
     
     DIRETRIZES:
     - Se houver muito conteúdo, foque nos conceitos mais importantes para provas.
-    - Seja direto e acadêmico.
-    - Se o usuário pedir um simulado, você DEVE gerar exatamente 10 questões de múltipla escolha.`;
+    - Seja direto e acadêmico.`;
     
     if (action === 'quiz') {
+      // Lógica de quantidade de questões solicitada pelo usuário
+      const quizTask = numDocs <= 1 
+        ? "Gere um SIMULADO DE EXATAMENTE 10 QUESTÕES de múltipla escolha." 
+        : `Gere um SIMULADO ABRANGENTE de múltipla escolha. Como há múltiplas fontes (${numDocs}), você deve decidir a quantidade ideal de questões (entre 10 e 20) para cobrir os pontos essenciais de cada documento fornecido.`;
+
       systemPrompt += `
-      TAREFA: Gere um SIMULADO DE 10 QUESTÕES em formato JSON puro.
+      TAREFA: ${quizTask} em formato JSON puro.
       - Não escreva nada além do JSON.
       - Use o contexto das fontes para criar questões variadas.
+      - Se houver múltiplas fontes, você DEVE garantir que existam questões abordando o conteúdo de cada uma delas.
       
       ESTRUTURA JSON:
       {
@@ -89,8 +93,7 @@ serve(async (req) => {
       }`;
     }
 
-    // 4. Chamada OpenAI (usando gpt-4o-mini para simulados se forem grandes, ou gpt-4o para chat)
-    // Nota: gpt-4o-mini é MUITO mais rápido para gerar JSON longo de 10 questões
+    // 4. Chamada OpenAI
     const model = action === 'quiz' ? "gpt-4o-mini" : "gpt-4o";
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
