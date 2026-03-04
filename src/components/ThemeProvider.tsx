@@ -7,5 +7,15 @@ export function ThemeProvider({
   children, 
   ...props 
 }: React.ComponentProps<typeof NextThemesProvider>) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>;
+  // Forçamos o atributo 'forcedTheme' como dark para que o app nunca mude
+  return (
+    <NextThemesProvider 
+      {...props} 
+      forcedTheme="dark"
+      enableSystem={false}
+      defaultTheme="dark"
+    >
+      {children}
+    </NextThemesProvider>
+  );
 }

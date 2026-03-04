@@ -1,11 +1,9 @@
 "use client";
 
 import React from 'react';
-import { Settings as SettingsIcon, Moon, Sun, ShieldAlert, Trash2, ChevronRight, LogOut, ExternalLink } from 'lucide-react';
-import { useTheme } from "next-themes";
+import { Settings as SettingsIcon, ShieldAlert, Trash2, ChevronRight, LogOut, ExternalLink, Moon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +20,6 @@ import { showError, showSuccess } from "@/utils/toast";
 import { useAuth } from '@/components/AuthProvider';
 
 const SettingsPage = () => {
-  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const { signOut } = useAuth();
 
@@ -50,22 +47,19 @@ const SettingsPage = () => {
         </div>
 
         <div className="space-y-6">
-          {/* Aparência */}
+          {/* Aparência (Informativo apenas) */}
           <section className="space-y-3">
             <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Personalização</h2>
             <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
               <CardContent className="p-0">
-                <div className="flex items-center justify-between p-4 px-6">
+                <div className="flex items-center justify-between p-4 px-6 opacity-60">
                   <div className="flex items-center gap-3">
                     <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-xl">
-                      {theme === 'dark' ? <Moon size={18} className="text-amber-600" /> : <Sun size={18} className="text-amber-600" />}
+                      <Moon size={18} className="text-amber-600" />
                     </div>
-                    <span className="font-bold text-study-dark dark:text-zinc-200">Modo Escuro</span>
+                    <span className="font-bold text-study-dark dark:text-zinc-200">Modo Escuro (Padrão)</span>
                   </div>
-                  <Switch 
-                    checked={theme === "dark"} 
-                    onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")} 
-                  />
+                  <span className="text-[10px] font-black text-study-primary uppercase tracking-tighter">Ativado</span>
                 </div>
               </CardContent>
             </Card>
