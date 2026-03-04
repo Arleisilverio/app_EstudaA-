@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%; /* Cinza azulado muito claro */
+    --background: 210 20% 98%;
     --foreground: 222 47% 11%; 
     
     --card: 0 0% 100%;
@@ -13,7 +13,7 @@
     --popover: 210 20% 98%;
     --popover-foreground: 222 47% 11%;
  
-    --primary: 221.2 83.2% 53.3%; /* Azul Safira */
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
  
     --secondary: 210 40% 96.1%;
@@ -34,7 +34,6 @@
  
     --radius: 1rem;
 
-    /* Variáveis Customizadas (Azul) */
     --study-primary: 221.2 83.2% 53.3%;
     --study-medium: 215.4 16.3% 46.9%;
     --study-light: 214.3 31.8% 91.4%;
@@ -43,7 +42,7 @@
   }
  
   .dark {
-    --background: 222 47% 4%; /* Preto Azulado Profundo */
+    --background: 222 47% 4%;
     --foreground: 210 40% 98%;
  
     --card: 222 47% 6%;
@@ -52,7 +51,7 @@
     --popover: 222 47% 4%;
     --popover-foreground: 210 40% 98%;
  
-    --primary: 217.2 91.2% 59.8%; /* Azul mais vibrante para o escuro */
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
  
     --secondary: 217.2 32.6% 17.5%;
@@ -71,7 +70,6 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
 
-    /* Variáveis Customizadas Dark (Azul) */
     --study-primary: 217.2 91.2% 59.8%;
     --study-medium: 215 20.2% 65.1%;
     --study-light: 217.2 32.6% 17.5%;
@@ -85,6 +83,31 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
+    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300 relative;
+  }
+
+  /* Marca d'água global */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60%;
+    max-width: 400px;
+    aspect-ratio: 1;
+    background-image: url('/logo-bg.jpg'); /* Nome sugerido para o arquivo na pasta public */
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.04; /* Muito sutil para não atrapalhar a visão */
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ajuste automático para o modo escuro */
+  .dark body::before {
+    filter: invert(1) brightness(0.8);
+    opacity: 0.02; /* Ainda mais sutil no escuro */
   }
 }
