@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { User, ClipboardCheck, CalendarDays, Settings, LayoutGrid } from 'lucide-react';
+import { User, ClipboardCheck, CalendarDays, Ticket, LayoutGrid } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from 'react-router-dom';
 
@@ -10,7 +10,7 @@ const items = [
   { label: 'Perfil', icon: User, path: '/profile' },
   { label: 'Provas', icon: ClipboardCheck, path: '/exams' },
   { label: 'Grade', icon: CalendarDays, path: '/schedule' },
-  { label: 'Ajustes', icon: Settings, path: '/settings' },
+  { label: 'Eventos', icon: Ticket, path: '/events' },
 ];
 
 const BottomNav = () => {

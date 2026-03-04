@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import Exams from "./pages/Exams";
 import Schedule from "./pages/Schedule";
 import Settings from "./pages/Settings";
+import Events from "./pages/Events";
 import Terms from "./pages/Terms";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -37,6 +38,7 @@ const AppRoutes = () => (
     <Route path="/exams" element={<ProtectedRoute><Exams /></ProtectedRoute>} />
     <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+    <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
     <Route path="/terms" element={<Terms />} />
     <Route path="*" element={<NotFound />} />
   </Routes>

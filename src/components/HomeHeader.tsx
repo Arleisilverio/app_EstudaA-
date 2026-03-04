@@ -1,16 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Bell, Loader2 } from 'lucide-react';
+import { Bell, Loader2, Settings } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import NotificationList from './NotificationList';
-import { startOfDay } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 const HomeHeader = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +25,6 @@ const HomeHeader = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
       const { data: profileData } = await supabase
         .from('profiles')
         .select('name, course, period, avatar_url')
@@ -32,13 +32,9 @@ const HomeHeader = () => {
         .single();
       
       if (profileData) setProfile(profileData);
-
-      setNotifications([]); // Limpar antes de buscar (lógica simplificada para o exemplo)
-      // Aqui entraria a lógica de busca de provas e aniversários...
-      // (Mantendo a funcionalidade existente mas garantindo o layout)
-      
+      setNotifications([]); 
     } catch (err) {
-      console.error("Erro ao carregar notificações:", err);
+      console.error("Erro ao carregar perfil:", err);
     } finally {
       setLoading(false);
     }
@@ -78,19 +74,28 @@ const HomeHeader = () => {
         </div>
       </div>
       
-      <Popover>
-        <PopoverTrigger asChild>
-          <button className="relative p-2.5 sm:p-3.5 bg-study-light/10 dark:bg-zinc-800 rounded-xl sm:rounded-2xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 group ml-2 shrink-0">
-            <Bell size={20} className={notifications.length > 0 ? "group-hover:animate-bounce" : ""} />
-            {notifications.length > 0 && (
-              <span className="absolute top-2.5 right-2.5 sm:top-3.5 sm:right-3.5 w-2 h-2 bg-red-500 border-2 border-white dark:border-zinc-900 rounded-full animate-pulse" />
-            )}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="p-0 bg-transparent border-none shadow-none" align="end" sideOffset={12}>
-          <NotificationList notifications={notifications} />
-        </PopoverContent>
-      </Popover>
+      <div className="flex items-center gap-2 ml-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="relative p-2.5 sm:p-3 bg-study-light/10 dark:bg-zinc-800 rounded-xl sm:rounded-2xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 group shrink-0">
+              <Bell size={20} />
+              {notifications.length > 0 && (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 border-2 border-white dark:border-zinc-900 rounded-full animate-pulse" />
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="p-0 bg-transparent border-none shadow-none" align="end" sideOffset={12}>
+            <NotificationList notifications={notifications} />
+          </PopoverContent>
+        </Popover>
+
+        <button 
+          onClick={() => navigate('/settings')}
+          className="p-2.5 sm:p-3 bg-study-light/10 dark:bg-zinc-800 rounded-xl sm:rounded-2xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 shrink-0"
+        >
+          <Settings size={20} />
+        </button>
+      </div>
     </div>
   );
 };
