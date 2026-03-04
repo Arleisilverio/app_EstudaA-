@@ -14,6 +14,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { toast } from "sonner";
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const ExamsPage = () => {
   const { isAdmin, user } = useAuth();
@@ -148,7 +150,9 @@ const ExamsPage = () => {
                   <div className="bg-study-light/20 dark:bg-zinc-800/50 px-6 py-4 flex justify-between items-center border-b border-study-light/30 dark:border-zinc-800">
                     <div className="flex items-center gap-2">
                       <Calendar size={16} className="text-study-primary" />
-                      <span className="text-sm font-bold text-study-dark dark:text-zinc-200">{exam.date}</span>
+                      <span className="text-sm font-bold text-study-dark dark:text-zinc-200">
+                        {format(parseISO(exam.date), 'dd/MM/yyyy')}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge className="bg-study-primary/10 text-study-primary hover:bg-study-primary/20 border-none rounded-full px-3">
@@ -167,7 +171,7 @@ const ExamsPage = () => {
                     <div>
                       <h3 className="text-lg font-bold text-study-dark dark:text-zinc-100 mb-1">{exam.subject}</h3>
                       <div className="flex items-center gap-2 text-study-medium text-xs font-medium">
-                        <Clock size={14} /> {exam.time}
+                        <Clock size={14} /> {exam.time ? exam.time.substring(0, 5) : ''}
                       </div>
                     </div>
 
