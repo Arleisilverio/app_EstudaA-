@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import NotificationList from './NotificationList';
-import { differenceInDays, parseISO, startOfDay } from 'date-fns';
+import { differenceInDays, parseISO, startOfDay, addYears, setYear, isBefore } from 'date-fns';
 
 const HomeHeader = () => {
   const { user } = useAuth();
@@ -34,23 +34,59 @@ const HomeHeader = () => {
       if (profileData) setProfile(profileData);
 
       const today = startOfDay(new Date());
+      const currentYear = today.getFullYear();
+
+      // 1. Buscar Provas
       const { data: examsData } = await supabase
         .from('exams')
         .select('id, subject, date, time')
         .order('date', { ascending: true });
 
+      let allAlerts: any[] = [];
+
       if (examsData) {
-        // Regra: Aparecer 2 dias antes, 1 dia antes e no próprio dia.
-        // Sumir assim que a data passar (diff < 0).
-        const relevantAlerts = examsData.filter(exam => {
+        const examAlerts = examsData.filter(exam => {
           const examDate = startOfDay(parseISO(exam.date));
           const diff = differenceInDays(examDate, today);
-          
           return diff >= 0 && diff <= 2;
-        });
+        }).map(exam => ({ ...exam, type: 'exam' }));
         
-        setNotifications(relevantAlerts);
+        allAlerts = [...examAlerts];
       }
+
+      // 2. Buscar Aniversários (Todos os perfis que têm birthday preenchido)
+      const { data: allProfiles } = await supabase
+        .from('profiles')
+        .select('id, name, birthday')
+        .not('birthday', 'is', null);
+
+      if (allProfiles) {
+        const birthdayAlerts = allProfiles.filter(p => {
+          if (!p.birthday) return false;
+          
+          const bDate = parseISO(p.birthday);
+          // Normaliza o ano para o ano atual para comparar a proximidade
+          let nextBirthday = setYear(bDate, currentYear);
+          
+          // Se o aniversário deste ano já passou, verifica o do próximo ano
+          if (isBefore(nextBirthday, today)) {
+            nextBirthday = addYears(nextBirthday, 1);
+          }
+
+          const diff = differenceInDays(nextBirthday, today);
+          // Regra: Notificar se faltam 5 dias ou menos
+          return diff >= 0 && diff <= 5;
+        }).map(p => ({
+          id: `bday-${p.id}`,
+          subject: p.name, // Usamos o campo subject para o nome no componente de lista
+          date: p.birthday,
+          type: 'birthday'
+        }));
+
+        allAlerts = [...allAlerts, ...birthdayAlerts];
+      }
+      
+      setNotifications(allAlerts);
     } catch (err) {
       console.error("Erro ao carregar notificações:", err);
     } finally {

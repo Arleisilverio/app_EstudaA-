@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Save, User, Loader2, History, Trash2, Award } from 'lucide-react';
+import { Camera, Save, User, Loader2, History, Trash2, Award, Cake } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,8 @@ const ProfilePage = () => {
     course: "",
     period: "",
     completion_year: "",
-    avatar_url: ""
+    avatar_url: "",
+    birthday: ""
   });
 
   useEffect(() => {
@@ -39,7 +40,10 @@ const ProfilePage = () => {
 
   const fetchProfile = async () => {
     const { data } = await supabase.from('profiles').select('*').eq('id', user?.id).single();
-    if (data) setProfile(data);
+    if (data) setProfile({
+      ...data,
+      birthday: data.birthday || ""
+    });
     setLoading(false);
   };
 
@@ -59,11 +63,9 @@ const ProfilePage = () => {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      // Usamos um nome fixo 'avatar' dentro da pasta do usuário para manter o storage limpo
       const fileExt = file.name.split('.').pop();
       const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
 
-      // Upload para o bucket 'announcements' (usado para storage geral)
       const { error: uploadError } = await supabase.storage
         .from('announcements')
         .upload(filePath, file, {
@@ -73,15 +75,12 @@ const ProfilePage = () => {
 
       if (uploadError) throw uploadError;
 
-      // Obter URL pública
       const { data: { publicUrl } } = supabase.storage
         .from('announcements')
         .getPublicUrl(filePath);
 
-      // Atualizar estado local
       setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
       
-      // Salvar URL no perfil do banco de dados
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
@@ -90,7 +89,6 @@ const ProfilePage = () => {
       if (updateError) throw updateError;
 
       toast.success("Foto de perfil atualizada!");
-      // Pequeno delay para garantir que a imagem seja renderizada
       setTimeout(() => fetchProfile(), 500);
     } catch (error: any) {
       console.error("Erro upload:", error);
@@ -176,6 +174,18 @@ const ProfilePage = () => {
                   onChange={e => setProfile({...profile, name: e.target.value})} 
                   className="rounded-xl" 
                 />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase ml-1">Data de Nascimento</Label>
+                <div className="relative">
+                  <Input 
+                    type="date"
+                    value={profile.birthday} 
+                    onChange={e => setProfile({...profile, birthday: e.target.value})} 
+                    className="rounded-xl pl-10" 
+                  />
+                  <Cake className="absolute left-3 top-1/2 -translate-y-1/2 text-study-primary" size={18} />
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-[10px] font-bold uppercase ml-1">Curso</Label>
