@@ -41,13 +41,31 @@ const PromoBanner = () => {
   };
 
   const handleNavigation = (link: string, e: React.MouseEvent) => {
+    // Impedimos que o evento se propague para outros elementos
+    e.preventDefault();
     e.stopPropagation();
-    if (!link || link === '#') return;
+    
+    if (!link || link === '#' || link.trim() === '') return;
 
-    if (link.startsWith('http')) {
-      window.open(link, '_blank', 'noopener,noreferrer');
+    const targetLink = link.trim();
+
+    // Verifica se é um link externo (começa com http ou parece uma URL de domínio)
+    const isExternal = targetLink.startsWith('http') || targetLink.includes('.');
+    const isInternalRoute = targetLink.startsWith('/');
+
+    if (isExternal && !isInternalRoute) {
+      // Garante que a URL tenha o protocolo para o window.open funcionar
+      const url = targetLink.startsWith('http') ? targetLink : `https://${targetLink}`;
+      
+      // Abre em nova aba
+      const win = window.open(url, '_blank', 'noopener,noreferrer');
+      // Se win for null, o bloqueador de popups pode ter agido
+      if (!win) {
+        window.location.href = url; // Fallback para a mesma aba se bloqueado
+      }
     } else {
-      navigate(link);
+      // Navegação interna do React Router
+      navigate(targetLink);
     }
   };
 
@@ -80,6 +98,7 @@ const PromoBanner = () => {
                <img 
                 src="https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2070&auto=format&fit=crop" 
                 className="absolute inset-0 w-full h-full object-cover opacity-50"
+                alt="Placeholder"
               />
               <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-8">
                 <h1 className="text-2xl sm:text-3xl font-black text-white italic">Bem-vindo!</h1>
@@ -102,12 +121,13 @@ const PromoBanner = () => {
                   </h1>
                   {slide.subtitle && <p className="text-white/90 text-xs sm:text-sm mt-1 font-bold italic drop-shadow-sm line-clamp-1">{slide.subtitle}</p>}
                   
-                  <Button 
-                    className="mt-4 w-fit bg-study-primary hover:bg-study-dark text-white rounded-full px-5 py-3 h-auto text-[10px] sm:text-xs font-black uppercase tracking-widest gap-2 shadow-lg transition-all active:scale-95"
-                    onClick={(e) => handleNavigation(slide.button_link, e)}
-                  >
-                    {slide.button_text} <ArrowRight size={14} />
-                  </Button>
+                  <div className="mt-4">
+                    <Button 
+                      className="w-fit bg-study-primary hover:bg-study-dark text-white rounded-full px-5 py-3 h-auto text-[10px] sm:text-xs font-black uppercase tracking-widest gap-2 shadow-lg transition-all active:scale-95 pointer-events-none"
+                    >
+                      {slide.button_text} <ArrowRight size={14} />
+                    </Button>
+                  </div>
                 </div>
 
                 {isAdmin && (
