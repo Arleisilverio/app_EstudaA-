@@ -33,6 +33,22 @@ const FeedbackSection = () => {
 
   useEffect(() => {
     fetchFeedbacks();
+
+    // ESCUTA EM TEMPO REAL: Qualquer novo feedback ou exclusão atualiza a lista de todos
+    const channel = supabase
+      .channel('public:app_feedback')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_feedback' },
+        () => {
+          fetchFeedbacks(); // Recarrega a lista completa para garantir os nomes dos perfis (joins)
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchFeedbacks = async () => {
@@ -51,44 +67,23 @@ const FeedbackSection = () => {
 
     setSending(true);
     try {
-      // 1. Primeiro buscamos o nome atual do perfil do usuário para garantir a exibição local
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', user?.id)
-        .single();
-
-      // 2. Inserimos o feedback
-      const { data: insertedData, error: insertError } = await supabase
+      const { error } = await supabase
         .from('app_feedback')
         .insert([{
           user_id: user?.id,
           rating,
           comment
-        }])
-        .select()
-        .single();
+        }]);
 
-      if (insertError) throw insertError;
+      if (error) throw error;
 
-      // 3. Criamos o objeto de feedback completo para atualizar a UI instantaneamente
-      const newFeedback: Feedback = {
-        ...insertedData,
-        profiles: { name: profileData?.name || "Estudante" }
-      };
-
-      setFeedbacks(prev => [newFeedback, ...prev]);
-      
       toast.success("Obrigado pelo seu feedback!");
       setComment("");
       setRating(0);
-
-      // Sincroniza com o servidor após 2 segundos para garantir que tudo está ok
-      setTimeout(() => fetchFeedbacks(), 2000);
-
+      // O Realtime cuidará de atualizar a lista automaticamente
     } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao enviar avaliação: " + err.message);
+      toast.error("Erro ao enviar avaliação.");
     } finally {
       setSending(false);
     }
@@ -97,23 +92,21 @@ const FeedbackSection = () => {
   const handleDelete = async (id: string) => {
     if (!confirm("Remover esta avaliação?")) return;
     const { error } = await supabase.from('app_feedback').delete().eq('id', id);
-    if (!error) {
-      toast.success("Feedback removido.");
-      setFeedbacks(prev => prev.filter(f => f.id !== id));
-    }
+    if (error) toast.error("Erro ao remover.");
+    else toast.success("Feedback removido.");
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 px-1">
         <MessageSquare className="text-study-primary" size={18} />
-        <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest">Feedback do App</h2>
+        <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest">Mural de Feedbacks</h2>
       </div>
 
       <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
         <CardHeader className="bg-study-light/20 pb-4">
           <CardTitle className="text-sm font-black flex items-center gap-2 text-study-dark">
-            O que você está achando?
+            Sua opinião sobre o App
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6 space-y-4">
@@ -136,7 +129,7 @@ const FeedbackSection = () => {
           </div>
           
           <Textarea 
-            placeholder="Sua opinião nos ajuda a melhorar..." 
+            placeholder="O que podemos melhorar no Estuda AÍ?" 
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             className="rounded-xl border-zinc-800 bg-zinc-800/30 min-h-[100px] text-white"
@@ -148,34 +141,36 @@ const FeedbackSection = () => {
             className="w-full bg-study-primary text-white rounded-xl font-bold py-6 gap-2"
           >
             {sending ? <Loader2 className="animate-spin" /> : <Send size={18} />}
-            Enviar Avaliação
+            Enviar Feedback para Todos
           </Button>
         </CardContent>
       </Card>
 
       <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
-        <CardHeader className="border-b border-zinc-800">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xs font-bold text-study-medium uppercase tracking-wider">Últimas Avaliações</CardTitle>
-            <Button variant="ghost" size="sm" onClick={fetchFeedbacks} className="h-6 text-[9px] uppercase font-bold text-study-primary">Atualizar</Button>
-          </div>
+        <CardHeader className="border-b border-zinc-800 bg-zinc-800/20">
+          <CardTitle className="text-xs font-black text-study-medium uppercase tracking-widest">
+            Comunidade ({feedbacks.length} avaliações)
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[400px] w-full p-4">
+          <ScrollArea className="h-[450px] w-full p-4">
             {loading ? (
-              <div className="flex justify-center py-10"><Loader2 className="animate-spin text-study-primary" /></div>
+              <div className="flex justify-center py-10"><Loader2 className="animate-spin text-study-primary" size={32} /></div>
             ) : feedbacks.length === 0 ? (
-              <p className="text-center py-10 text-xs text-study-medium italic">Nenhuma avaliação ainda.</p>
+              <div className="text-center py-16 opacity-40">
+                <MessageSquare className="mx-auto mb-2 text-study-medium" size={32} />
+                <p className="text-xs font-bold uppercase tracking-widest text-study-medium">Seja o primeiro a avaliar!</p>
+              </div>
             ) : (
               <div className="flex flex-col gap-4">
                 {feedbacks.map((item) => (
-                  <div key={item.id} className="p-4 rounded-2xl bg-zinc-800/30 border border-zinc-800 relative group animate-in fade-in slide-in-from-top-2 duration-500">
+                  <div key={item.id} className="p-4 rounded-2xl bg-zinc-800/40 border border-zinc-800/50 relative group animate-in fade-in slide-in-from-bottom-2 duration-500">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="bg-study-primary/10 p-1.5 rounded-lg">
                           <User size={12} className="text-study-primary" />
                         </div>
-                        <span className="text-xs font-black text-study-dark truncate max-w-[120px]">
+                        <span className="text-xs font-black text-study-dark truncate max-w-[150px]">
                           {item.profiles?.name || "Estudante"}
                         </span>
                       </div>
@@ -186,20 +181,24 @@ const FeedbackSection = () => {
                       </div>
                     </div>
                     
-                    <p className="text-sm text-zinc-300 leading-relaxed italic">"{item.comment}"</p>
+                    <p className="text-sm text-zinc-300 leading-relaxed">
+                      {item.comment}
+                    </p>
                     
-                    <div className="mt-2 text-[9px] font-bold text-study-medium uppercase tracking-tighter">
-                      {format(new Date(item.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                    <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
+                      <span className="text-[9px] font-bold text-study-medium uppercase tracking-tighter">
+                        {format(new Date(item.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                      </span>
+                      {isAdmin && (
+                        <button 
+                          onClick={() => handleDelete(item.id)}
+                          className="p-1 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                          title="Remover (Admin)"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
-
-                    {isAdmin && (
-                      <button 
-                        onClick={() => handleDelete(item.id)}
-                        className="absolute top-2 right-2 p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
