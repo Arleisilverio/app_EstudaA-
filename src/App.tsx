@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
-import GlobalBackground from "@/components/GlobalBackground";
 import Index from "./pages/Index";
 import StudyDashboard from "./pages/StudyDashboard";
 import History from "./pages/History";
@@ -50,7 +49,6 @@ const App = () => (
     <ThemeProvider defaultTheme="light" storageKey="study-ai-theme" attribute="class">
       <AuthProvider>
         <TooltipProvider>
-          <GlobalBackground />
           <Toaster />
           <Sonner />
           <BrowserRouter>
