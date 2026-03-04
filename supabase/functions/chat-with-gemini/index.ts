@@ -57,7 +57,7 @@ serve(async (req) => {
       contextText = results.filter(r => r !== null).join("");
     }
 
-    // 3. Definir Prompts Otimizados com a nova lógica de questões
+    // 3. Definir Prompts Otimizados
     const numDocs = documents?.length || 0;
     
     let systemPrompt = `Você é o Professor Especialista do Estuda AÍ. 
@@ -68,26 +68,26 @@ serve(async (req) => {
     - Seja direto e acadêmico.`;
     
     if (action === 'quiz') {
-      // Lógica de quantidade de questões solicitada pelo usuário
       const quizTask = numDocs <= 1 
-        ? "Gere um SIMULADO DE EXATAMENTE 10 QUESTÕES de múltipla escolha." 
-        : `Gere um SIMULADO ABRANGENTE de múltipla escolha. Como há múltiplas fontes (${numDocs}), você deve decidir a quantidade ideal de questões (entre 10 e 20) para cobrir os pontos essenciais de cada documento fornecido.`;
+        ? "Gere um SIMULADO DE EXATAMENTE 10 QUESTÕES de nível INTERMEDIÁRIO PARA AVANÇADO." 
+        : `Gere um SIMULADO ABRANGENTE de nível INTERMEDIÁRIO PARA AVANÇADO. Como há múltiplas fontes (${numDocs}), você deve decidir a quantidade ideal de questões (entre 10 e 20) para cobrir os pontos essenciais.`;
 
       systemPrompt += `
       TAREFA: ${quizTask} em formato JSON puro.
+      - NÃO gere perguntas de "O que é...". Gere perguntas de "Como se aplica...", "Analise o caso...", ou "Identifique a exceção...".
+      - Dificuldade: As perguntas não devem ser óbvias. Foque em interpretação e análise crítica do material.
+      - Distratores (opções incorretas): Devem ser plausíveis e baseados em erros comuns do conteúdo, desafiando o aluno a pensar.
       - Não escreva nada além do JSON.
-      - Use o contexto das fontes para criar questões variadas.
-      - Se houver múltiplas fontes, você DEVE garantir que existam questões abordando o conteúdo de cada uma delas.
       
       ESTRUTURA JSON:
       {
         "questions": [
           {
             "id": 1,
-            "question": "Pergunta baseada no texto...",
+            "question": "Pergunta desafiadora baseada no texto...",
             "options": ["A", "B", "C", "D"],
             "correctIndex": 0,
-            "explanation": "Explicação do porquê a alternativa está correta."
+            "explanation": "Explicação detalhada da lógica da questão."
           }
         ]
       }`;
@@ -103,10 +103,10 @@ serve(async (req) => {
         model: model,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "system", content: `CONTEXTO DAS FONTES:\n${contextText || "Use seus conhecimentos gerais."}` },
+          { role: "system", content: `CONTEXTO DAS FONTES PARA O SIMULADO:\n${contextText || "Use seus conhecimentos gerais avançados sobre o tema."}` },
           { role: "user", content: query }
         ],
-        temperature: 0.4
+        temperature: 0.5
       })
     })
 
