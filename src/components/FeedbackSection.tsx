@@ -19,9 +19,7 @@ interface Feedback {
   comment: string;
   created_at: string;
   user_id: string;
-  profiles?: {
-    name: string;
-  } | null;
+  userName?: string;
 }
 
 const FeedbackSection = () => {
@@ -34,27 +32,34 @@ const FeedbackSection = () => {
 
   const fetchFeedbacks = async () => {
     try {
-      // Buscamos os feedbacks e tentamos trazer o nome do perfil associado
-      const { data, error } = await supabase
+      // 1. Buscamos apenas os feedbacks primeiro (mais garantido)
+      const { data: feedbackData, error: feedbackError } = await supabase
         .from('app_feedback')
-        .select(`
-          id, 
-          rating, 
-          comment, 
-          created_at, 
-          user_id,
-          profiles (name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error("Erro ao buscar feedbacks:", error);
-        return;
-      }
+      if (feedbackError) throw feedbackError;
+      if (!feedbackData) return;
 
-      setFeedbacks(data as any || []);
-    } catch (err) {
-      console.error("Erro inesperado:", err);
+      // 2. Buscamos todos os perfis para associar os nomes manualmente
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id, name');
+
+      const nameMap: Record<string, string> = {};
+      profileData?.forEach(p => {
+        if (p.id && p.name) nameMap[p.id] = p.name;
+      });
+
+      // 3. Mesclamos os dados
+      const merged = feedbackData.map(f => ({
+        ...f,
+        userName: nameMap[f.user_id] || "Estudante"
+      }));
+
+      setFeedbacks(merged);
+    } catch (err: any) {
+      console.error("Erro no Mural:", err.message);
     } finally {
       setLoading(false);
     }
@@ -62,17 +67,13 @@ const FeedbackSection = () => {
 
   useEffect(() => {
     fetchFeedbacks();
-
-    // Inscrição em tempo real para atualizações automáticas
+    
+    // Inscrição em tempo real simplificada
     const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'app_feedback' },
-        () => {
-          fetchFeedbacks();
-        }
-      )
+      .channel('feedback_updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_feedback' }, () => {
+        fetchFeedbacks();
+      })
       .subscribe();
 
     return () => {
@@ -81,7 +82,8 @@ const FeedbackSection = () => {
   }, []);
 
   const handleSendFeedback = async () => {
-    if (rating === 0) return toast.error("Por favor, selecione as estrelas.");
+    if (!user?.id) return toast.error("Você precisa estar logado.");
+    if (rating === 0) return toast.error("Escolha de 1 a 5 estrelas.");
     if (!comment.trim()) return toast.error("Escreva um comentário.");
 
     setSending(true);
@@ -89,22 +91,19 @@ const FeedbackSection = () => {
       const { error } = await supabase
         .from('app_feedback')
         .insert([{
-          user_id: user?.id,
+          user_id: user.id,
           rating,
           comment
         }]);
 
       if (error) throw error;
 
-      toast.success("Feedback enviado com sucesso!");
+      toast.success("Publicado no mural!");
       setComment("");
       setRating(0);
-      
-      // Forçamos a atualização imediata da lista
-      fetchFeedbacks();
+      fetchFeedbacks(); // Força atualização
     } catch (err: any) {
-      toast.error("Erro ao salvar feedback.");
-      console.error(err);
+      toast.error("Erro ao enviar: " + err.message);
     } finally {
       setSending(false);
     }
@@ -112,103 +111,62 @@ const FeedbackSection = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Remover esta avaliação?")) return;
-    try {
-      const { error } = await supabase.from('app_feedback').delete().eq('id', id);
-      if (error) throw error;
-      toast.success("Removido com sucesso.");
+    const { error } = await supabase.from('app_feedback').delete().eq('id', id);
+    if (!error) {
+      toast.success("Removido.");
       fetchFeedbacks();
-    } catch (err) {
-      toast.error("Erro ao remover.");
     }
   };
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6">
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="text-study-primary" size={18} />
-          <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest">Mural da Comunidade</h2>
-        </div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={fetchFeedbacks}
-          className="h-7 text-[10px] font-bold text-study-primary hover:bg-study-primary/10"
-        >
-          {loading ? <Loader2 className="animate-spin size-3" /> : "Atualizar Mural"}
-        </Button>
+        <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest flex items-center gap-2">
+          <MessageSquare size={14} className="text-study-primary" /> Mural da Comunidade
+        </h2>
       </div>
 
-      {/* Formulário de Envio */}
       <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
-        <CardHeader className="bg-study-light/20 pb-4">
-          <CardTitle className="text-sm font-black text-study-dark">Sua avaliação</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex justify-center gap-2">
+        <CardContent className="pt-8 space-y-4">
+          <div className="flex justify-center gap-2 mb-2">
             {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                onClick={() => setRating(star)}
-                className="transition-all hover:scale-110 active:scale-90"
-              >
-                <Star 
-                  size={32} 
-                  className={cn(
-                    "transition-colors",
-                    star <= rating ? "fill-study-primary text-study-primary" : "text-zinc-700"
-                  )} 
-                />
+              <button key={star} onClick={() => setRating(star)}>
+                <Star size={32} className={cn("transition-colors", star <= rating ? "fill-study-primary text-study-primary" : "text-zinc-700")} />
               </button>
             ))}
           </div>
           
           <Textarea 
-            placeholder="O que você está achando do app?" 
+            placeholder="Conte para a comunidade o que achou..." 
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="rounded-xl border-zinc-800 bg-zinc-800/30 min-h-[80px] text-white focus:border-study-primary"
+            className="rounded-xl border-zinc-800 bg-zinc-800/30 min-h-[100px] text-white"
           />
 
-          <Button 
-            onClick={handleSendFeedback} 
-            disabled={sending} 
-            className="w-full bg-study-primary hover:bg-study-primary/90 text-white rounded-xl font-bold py-6 gap-2"
-          >
-            {sending ? <Loader2 className="animate-spin" /> : <Send size={18} />}
-            Publicar no Mural
+          <Button onClick={handleSendFeedback} disabled={sending} className="w-full bg-study-primary text-white rounded-xl font-bold py-6">
+            {sending ? <Loader2 className="animate-spin" /> : "Postar no Mural"}
           </Button>
         </CardContent>
       </Card>
 
-      {/* Lista de Avaliações */}
       <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
-        <CardHeader className="border-b border-zinc-800/50 bg-zinc-800/10">
-          <CardTitle className="text-[10px] font-black text-study-medium uppercase tracking-widest">
-            Feedbacks Recentes
-          </CardTitle>
+        <CardHeader className="bg-zinc-800/20 border-b border-zinc-800">
+          <CardTitle className="text-[10px] font-black text-study-medium uppercase tracking-widest">Feedbacks Recentes</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="h-[400px] w-full p-4">
-            {loading && feedbacks.length === 0 ? (
+            {loading ? (
               <div className="flex justify-center py-20"><Loader2 className="animate-spin text-study-primary" size={32} /></div>
             ) : feedbacks.length === 0 ? (
-              <div className="text-center py-20 opacity-30">
-                <MessageSquare className="mx-auto mb-2" size={32} />
-                <p className="text-xs font-bold uppercase tracking-widest">Seja o primeiro a avaliar</p>
-              </div>
+              <div className="text-center py-20 opacity-30 text-xs font-bold uppercase">Nenhum feedback ainda</div>
             ) : (
               <div className="flex flex-col gap-4">
                 {feedbacks.map((item) => (
-                  <div key={item.id} className="p-4 rounded-2xl bg-zinc-800/40 border border-zinc-800/50 relative group transition-all hover:bg-zinc-800/60">
+                  <div key={item.id} className="p-4 rounded-2xl bg-zinc-800/40 border border-zinc-800/50 relative group">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="bg-study-primary/10 p-1.5 rounded-lg">
-                          <User size={12} className="text-study-primary" />
-                        </div>
-                        <span className="text-xs font-black text-study-dark truncate max-w-[140px]">
-                          {item.profiles?.name || "Estudante"}
-                        </span>
+                        <div className="bg-study-primary/10 p-1.5 rounded-lg"><User size={12} className="text-study-primary" /></div>
+                        <span className="text-xs font-black text-study-dark">{item.userName}</span>
                       </div>
                       <div className="flex gap-0.5">
                         {[1, 2, 3, 4, 5].map((s) => (
@@ -216,20 +174,11 @@ const FeedbackSection = () => {
                         ))}
                       </div>
                     </div>
-                    
-                    <p className="text-sm text-zinc-300 leading-relaxed font-medium">
-                      {item.comment}
-                    </p>
-                    
-                    <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
-                      <span className="text-[9px] font-bold text-study-medium uppercase opacity-60">
-                        {format(new Date(item.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
-                      </span>
+                    <p className="text-sm text-zinc-300 leading-relaxed">"{item.comment}"</p>
+                    <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[9px] font-bold text-study-medium uppercase">
+                      {format(new Date(item.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
                       {isAdmin && (
-                        <button 
-                          onClick={() => handleDelete(item.id)}
-                          className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                        >
+                        <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:bg-red-500/10 p-1 rounded-lg">
                           <Trash2 size={14} />
                         </button>
                       )}
