@@ -43,9 +43,11 @@ const HomeHeader = () => {
   const fetchNotifications = async () => {
     try {
       const today = new Date();
+      
+      // Datas para comparação
       const tomorrowStr = format(addDays(today, 1), 'yyyy-MM-dd');
-      const fourDaysAhead = addDays(today, 4);
-      const dayMonthAhead = format(fourDaysAhead, 'MM-dd'); // Formato para comparar aniversário
+      const targetBday = addDays(today, 4);
+      const targetBdayMonthDay = format(targetBday, 'MM-dd'); // Ex: "05-20"
 
       const alerts: any[] = [];
 
@@ -59,7 +61,7 @@ const HomeHeader = () => {
         exams.forEach(exam => {
           alerts.push({
             id: exam.id,
-            subject: `Prova: ${exam.subject}`,
+            subject: exam.subject,
             date: exam.date,
             type: 'exam'
           });
@@ -67,21 +69,22 @@ const HomeHeader = () => {
       }
 
       // 2. Buscar Aniversários (4 dias de antecedência)
-      // Nota: Como o ano no banco pode variar, comparamos apenas mês e dia
+      // Buscamos todos os perfis (a política RLS profiles_read_all permite isso)
       const { data: bdays } = await supabase
         .from('profiles')
-        .select('id, name, birthday');
+        .select('id, name, birthday, avatar_url');
 
       if (bdays) {
         bdays.forEach(p => {
           if (p.birthday) {
-            // O aniversário no banco está como YYYY-MM-DD
-            const bdayPart = p.birthday.substring(5); // Pega apenas MM-DD
-            if (bdayPart === dayMonthAhead) {
+            // O formato no banco é YYYY-MM-DD. Pegamos apenas o MM-DD.
+            const bdayMonthDay = p.birthday.substring(5);
+            
+            if (bdayMonthDay === targetBdayMonthDay) {
               alerts.push({
                 id: `bday-${p.id}`,
-                subject: p.name || "Colega",
-                date: format(fourDaysAhead, 'yyyy-MM-dd'),
+                subject: p.name || "Estudante",
+                date: format(targetBday, 'yyyy-MM-dd'),
                 type: 'birthday'
               });
             }
