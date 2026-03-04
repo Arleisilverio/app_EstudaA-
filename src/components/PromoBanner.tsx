@@ -40,6 +40,17 @@ const PromoBanner = () => {
     }
   };
 
+  const handleNavigation = (link: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!link || link === '#') return;
+
+    if (link.startsWith('http')) {
+      window.open(link, '_blank', 'noopener,noreferrer');
+    } else {
+      navigate(link);
+    }
+  };
+
   const deleteAnnouncement = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Remover este aviso do mural?")) return;
@@ -77,7 +88,11 @@ const PromoBanner = () => {
             </div>
           ) : (
             announcements.map((slide) => (
-              <div key={slide.id} className="flex-[0_0_100%] aspect-[16/9] sm:aspect-[21/9] relative overflow-hidden group/slide cursor-pointer" onClick={() => slide.button_link && navigate(slide.button_link)}>
+              <div 
+                key={slide.id} 
+                className="flex-[0_0_100%] aspect-[16/9] sm:aspect-[21/9] relative overflow-hidden group/slide cursor-pointer" 
+                onClick={(e) => handleNavigation(slide.button_link, e)}
+              >
                 <img src={slide.image_url} alt={slide.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover/slide:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
                 
@@ -87,7 +102,10 @@ const PromoBanner = () => {
                   </h1>
                   {slide.subtitle && <p className="text-white/90 text-xs sm:text-sm mt-1 font-bold italic drop-shadow-sm line-clamp-1">{slide.subtitle}</p>}
                   
-                  <Button className="mt-4 w-fit bg-study-primary hover:bg-study-dark text-white rounded-full px-5 py-3 h-auto text-[10px] sm:text-xs font-black uppercase tracking-widest gap-2 shadow-lg transition-all active:scale-95">
+                  <Button 
+                    className="mt-4 w-fit bg-study-primary hover:bg-study-dark text-white rounded-full px-5 py-3 h-auto text-[10px] sm:text-xs font-black uppercase tracking-widest gap-2 shadow-lg transition-all active:scale-95"
+                    onClick={(e) => handleNavigation(slide.button_link, e)}
+                  >
                     {slide.button_text} <ArrowRight size={14} />
                   </Button>
                 </div>
