@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Scale, FileText, Gavel, ClipboardList, Book, Briefcase, 
-  Plus, Settings2, Trash2, Pencil, Save, Loader2, X 
+  Plus, Trash2, Pencil, Save, Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -104,54 +104,54 @@ const SubjectGrid = () => {
           <div className="bg-study-primary/10 p-2 rounded-lg">
             <Book className="text-study-primary" size={20} />
           </div>
-          <h3 className="text-2xl font-bold text-study-dark dark:text-white">Matérias</h3>
+          <h3 className="text-xl sm:text-2xl font-bold text-study-dark dark:text-white">Matérias</h3>
         </div>
         
         {isAdmin && (
           <Button 
             onClick={() => handleOpenDialog()}
             size="sm"
-            className="rounded-full bg-study-primary hover:bg-study-dark text-white gap-2"
+            className="rounded-full bg-study-primary hover:bg-study-dark text-white gap-2 h-9 text-xs"
           >
-            <Plus size={16} /> Nova Matéria
+            <Plus size={14} /> Nova Matéria
           </Button>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {subjects.map((subject) => {
           const IconComponent = ICON_MAP[subject.icon_name] || Book;
           return (
             <div key={subject.id} className="relative group">
               <button
                 onClick={() => navigate(`/study/${subject.id}`)}
-                className="w-full h-44 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center gap-3 shadow-study transition-all hover:-translate-y-1 active:scale-95 overflow-hidden border-b-4 border-black/10 bg-study-primary/90 dark:bg-study-primary/80"
+                className="w-full aspect-square sm:aspect-auto sm:min-h-[160px] rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 flex flex-col items-center justify-center text-center gap-2 sm:gap-3 shadow-study transition-all hover:-translate-y-1 active:scale-95 overflow-hidden border-b-4 border-black/10 bg-study-primary/90 dark:bg-study-primary/80"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
                 <div className="relative">
-                  <IconComponent size={44} className="text-white dark:text-zinc-900 drop-shadow-md" strokeWidth={1.5} />
+                  <IconComponent size={32} className="sm:size-[44px] text-white dark:text-zinc-900 drop-shadow-md" strokeWidth={1.5} />
                 </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-white dark:text-zinc-900 font-bold text-sm leading-tight drop-shadow-sm">
+                <div className="flex flex-col items-center w-full">
+                  <span className="text-white dark:text-zinc-900 font-bold text-[11px] sm:text-sm leading-tight drop-shadow-sm truncate w-full px-1">
                     {subject.name}
                   </span>
-                  <div className="w-8 h-0.5 bg-white/40 dark:bg-black/20 rounded-full mt-2" />
+                  <div className="w-6 sm:w-8 h-0.5 bg-white/40 dark:bg-black/20 rounded-full mt-1.5 sm:mt-2" />
                 </div>
               </button>
 
               {isAdmin && (
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-2 right-2 flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={(e) => { e.stopPropagation(); handleOpenDialog(subject); }}
-                    className="p-2 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-sm"
+                    className="p-1.5 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-sm"
                   >
-                    <Pencil size={14} />
+                    <Pencil size={12} />
                   </button>
                   <button 
                     onClick={(e) => handleDelete(subject.id, e)}
-                    className="p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full"
+                    className="p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
                   </button>
                 </div>
               )}
@@ -161,7 +161,7 @@ const SubjectGrid = () => {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="rounded-3xl max-w-[90vw] sm:max-w-md">
+        <DialogContent className="rounded-[2rem] max-w-[90vw] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingSubject ? "Editar Matéria" : "Nova Matéria"}</DialogTitle>
           </DialogHeader>
@@ -172,7 +172,7 @@ const SubjectGrid = () => {
                 value={formData.name} 
                 onChange={e => setFormData({...formData, name: e.target.value})}
                 placeholder="Ex: Direito Processual"
-                className="rounded-xl"
+                className="rounded-xl h-12"
               />
             </div>
             <div className="space-y-2">
