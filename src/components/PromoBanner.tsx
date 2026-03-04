@@ -29,7 +29,7 @@ const PromoBanner = () => {
         .from('announcements')
         .select('*')
         .order('order_index', { ascending: true })
-        .limit(4);
+        .limit(10); // Aumentado de 4 para 10 conforme solicitado
       
       if (error) throw error;
       setAnnouncements(data || []);
@@ -118,7 +118,7 @@ const PromoBanner = () => {
 
       {/* Indicadores de Slide */}
       {announcements.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 flex-wrap justify-center max-w-[80%]">
           {announcements.map((_, i) => (
             <div key={i} className="w-1.5 h-1.5 bg-white/40 rounded-full" />
           ))}
