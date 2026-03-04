@@ -51,19 +51,28 @@ const FeedbackSection = () => {
 
     setSending(true);
     try {
-      const { error } = await supabase.from('app_feedback').insert([{
+      // 1. Inserir no banco
+      const { data, error } = await supabase.from('app_feedback').insert([{
         user_id: user?.id,
         rating,
         comment
-      }]);
+      }]).select('*, profiles(name)').single();
 
       if (error) throw error;
+
+      // 2. Atualizar estado local instantaneamente com o retorno do banco
+      // Se por algum motivo o join 'profiles(name)' não vier no insert, fazemos um fallback
+      const newFeedback = data as any;
+      setFeedbacks(prev => [newFeedback, ...prev]);
 
       toast.success("Obrigado pelo seu feedback!");
       setComment("");
       setRating(0);
-      fetchFeedbacks();
+      
+      // 3. Opcional: Re-sincronizar após um pequeno delay para garantir consistência
+      setTimeout(() => fetchFeedbacks(), 1000);
     } catch (err) {
+      console.error(err);
       toast.error("Erro ao enviar avaliação.");
     } finally {
       setSending(false);
@@ -75,7 +84,7 @@ const FeedbackSection = () => {
     const { error } = await supabase.from('app_feedback').delete().eq('id', id);
     if (!error) {
       toast.success("Feedback removido.");
-      fetchFeedbacks();
+      setFeedbacks(prev => prev.filter(f => f.id !== id));
     }
   };
 
@@ -134,7 +143,7 @@ const FeedbackSection = () => {
           <CardTitle className="text-xs font-bold text-study-medium uppercase tracking-wider">Últimas Avaliações</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[300px] w-full p-4">
+          <ScrollArea className="h-[400px] w-full p-4">
             {loading ? (
               <div className="flex justify-center py-10"><Loader2 className="animate-spin text-study-primary" /></div>
             ) : feedbacks.length === 0 ? (
@@ -142,7 +151,7 @@ const FeedbackSection = () => {
             ) : (
               <div className="flex flex-col gap-4">
                 {feedbacks.map((item) => (
-                  <div key={item.id} className="p-4 rounded-2xl bg-zinc-800/30 border border-zinc-800 relative group">
+                  <div key={item.id} className="p-4 rounded-2xl bg-zinc-800/30 border border-zinc-800 relative group animate-in fade-in slide-in-from-top-2 duration-500">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="bg-study-primary/10 p-1.5 rounded-lg">
