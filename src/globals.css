@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Color 1: #e7edea (Fundo Principal) */
+    /* Color 1: #e7edea */
     --background: 150 16% 92%;
     --foreground: 232 93% 16%; 
     
@@ -14,22 +14,22 @@
     --popover: 150 16% 92%;
     --popover-foreground: 232 93% 16%;
  
-    /* Color 4: #030d4f (Primária) */
+    /* Color 4: #030d4f */
     --primary: 232 93% 16%;
     --primary-foreground: 150 16% 92%;
  
-    /* Color 5: #ceecef (Secundária/Suave) */
+    /* Color 5: #ceecef */
     --secondary: 186 45% 87%;
     --secondary-foreground: 232 93% 16%;
  
     --muted: 186 20% 80%;
     --muted-foreground: 232 40% 30%;
  
-    /* Color 2: #ffc52c (Acento/Ação) */
+    /* Color 2: #ffc52c */
     --accent: 43 100% 59%;
     --accent-foreground: 232 93% 16%;
  
-    /* Color 3: #fb0c06 (Destrutivo) */
+    /* Color 3: #fb0c06 */
     --destructive: 1 95% 50%;
     --destructive-foreground: 210 40% 98%;
 
@@ -47,7 +47,6 @@
   }
  
   .dark {
-    /* Fundo Escuro baseado no Azul Marinho profundo (#030d4f) */
     --background: 232 93% 8%;
     --foreground: 150 16% 95%;
  
@@ -57,7 +56,6 @@
     --popover: 232 93% 8%;
     --popover-foreground: 150 16% 95%;
  
-    /* No modo escuro, o Amarelo (#ffc52c) funciona melhor como primária para destaque */
     --primary: 43 100% 59%;
     --primary-foreground: 232 93% 10%;
  
@@ -90,30 +88,6 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300 relative;
-  }
-
-  /* Marca d'água global */
-  body::before {
-    content: "";
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 60%;
-    max-width: 400px;
-    aspect-ratio: 1;
-    background-image: url('/logo-bg.jpg');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    opacity: 0.05;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .dark body::before {
-    filter: invert(1) brightness(1.2);
-    opacity: 0.03;
+    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
   }
 }

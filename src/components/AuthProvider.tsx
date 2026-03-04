@@ -40,6 +40,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    // Timeout de segurança: se o Supabase não responder em 5 segundos, libera o app
+    const safetyTimeout = setTimeout(() => {
+      if (loading) setLoading(false);
+    }, 5000);
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -47,6 +52,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(currentUser);
       setRole(determineRole(currentUser?.email));
       setLoading(false);
+      clearTimeout(safetyTimeout);
+    }).catch(() => {
+      setLoading(false);
+      clearTimeout(safetyTimeout);
     });
 
     // Listen for changes
@@ -58,7 +67,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
+    };
   }, []);
 
   const signOut = async () => {
