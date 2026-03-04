@@ -112,14 +112,13 @@ const ChatArea = () => {
           <Button 
             variant="outline" 
             onClick={() => handleAction('quiz', "Gere um simulado interativo sobre a matéria.")}
-            className="w-full h-auto py-6 px-4 sm:px-6 rounded-2xl border-study-primary/20 bg-study-primary/5 hover:bg-study-primary/10 dark:bg-zinc-900/40 dark:border-zinc-800 flex items-center gap-3 group transition-all overflow-hidden"
+            className="w-full h-auto py-5 px-4 sm:px-6 rounded-2xl border-study-primary/20 bg-study-primary/5 hover:bg-study-primary/10 dark:bg-zinc-900/40 dark:border-zinc-800 flex items-center gap-4 group transition-all overflow-hidden"
           >
-            <div className="bg-study-primary p-2.5 sm:p-3 rounded-xl text-white shrink-0">
+            <div className="bg-study-primary p-2.5 sm:p-3 rounded-xl text-white shrink-0 shadow-sm group-hover:scale-110 transition-transform">
               <GraduationCap size={22} className="sm:size-[24px]" />
             </div>
             <div className="text-left min-w-0">
-              <p className="font-bold text-study-dark dark:text-zinc-100 text-base sm:text-lg truncate">Gerar Simulado</p>
-              <p className="text-[10px] sm:text-xs text-study-medium dark:text-zinc-500 line-clamp-1">Simulado personalizado de 10 a 20 questões (Máx 1/dia)</p>
+              <p className="font-black text-study-dark dark:text-zinc-100 text-base sm:text-lg tracking-tight">Gerar Simulado</p>
             </div>
           </Button>
         </div>
