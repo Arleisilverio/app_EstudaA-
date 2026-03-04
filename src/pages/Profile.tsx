@@ -3,18 +3,29 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Save, User, Loader2, History, Trash2, Award, Cake } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import BottomNav from "@/components/BottomNav";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from "sonner";
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
+
+const DAYS = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+const MONTHS = [
+  { val: "01", label: "Janeiro" }, { val: "02", label: "Fevereiro" },
+  { val: "03", label: "Março" }, { val: "04", label: "Abril" },
+  { val: "05", label: "Maio" }, { val: "06", label: "Junho" },
+  { val: "07", label: "Julho" }, { val: "08", label: "Agosto" },
+  { val: "09", label: "Setembro" }, { val: "10", label: "Outubro" },
+  { val: "11", label: "Novembro" }, { val: "12", label: "Dezembro" }
+];
 
 const ProfilePage = () => {
   const { user } = useAuth();
@@ -22,13 +33,14 @@ const ProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [quizHistory, setQuizHistory] = useState<any[]>([]);
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
   const [profile, setProfile] = useState({
     name: "",
     course: "",
     period: "",
     completion_year: "",
-    avatar_url: "",
-    birthday: ""
+    avatar_url: ""
   });
 
   useEffect(() => {
@@ -40,10 +52,20 @@ const ProfilePage = () => {
 
   const fetchProfile = async () => {
     const { data } = await supabase.from('profiles').select('*').eq('id', user?.id).single();
-    if (data) setProfile({
-      ...data,
-      birthday: data.birthday || ""
-    });
+    if (data) {
+      setProfile({
+        name: data.name || "",
+        course: data.course || "",
+        period: data.period || "",
+        completion_year: data.completion_year || "",
+        avatar_url: data.avatar_url || ""
+      });
+      if (data.birthday) {
+        const [_, month, day] = data.birthday.split('-');
+        setBirthDay(day);
+        setBirthMonth(month);
+      }
+    }
     setLoading(false);
   };
 
@@ -62,59 +84,36 @@ const ProfilePage = () => {
       setUploading(true);
       const file = event.target.files?.[0];
       if (!file) return;
-
       const fileExt = file.name.split('.').pop();
       const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('announcements')
-        .upload(filePath, file, {
-          upsert: true,
-          cacheControl: '3600'
-        });
-
+      const { error: uploadError } = await supabase.storage.from('announcements').upload(filePath, file, { upsert: true, cacheControl: '3600' });
       if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('announcements')
-        .getPublicUrl(filePath);
-
+      const { data: { publicUrl } } = supabase.storage.from('announcements').getPublicUrl(filePath);
       setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
-      
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
+      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
       toast.success("Foto de perfil atualizada!");
       setTimeout(() => fetchProfile(), 500);
     } catch (error: any) {
-      console.error("Erro upload:", error);
-      toast.error("Erro ao carregar imagem: " + error.message);
+      toast.error("Erro ao carregar imagem");
     } finally {
       setUploading(false);
-    }
-  };
-
-  const deleteHistoryItem = async (id: string) => {
-    if (!confirm("Excluir este simulado do histórico?")) return;
-    const { error } = await supabase.from('quiz_history').delete().eq('id', id);
-    if (!error) {
-      setQuizHistory(prev => prev.filter(item => item.id !== id));
-      toast.success("Histórico removido.");
     }
   };
 
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
+    
+    // Construímos a data usando o ano 2000 como padrão interno
+    const birthdayString = birthDay && birthMonth ? `2000-${birthMonth}-${birthDay}` : null;
+
     const { error } = await supabase.from('profiles').upsert({ 
       id: user.id, 
-      ...profile, 
+      ...profile,
+      birthday: birthdayString,
       updated_at: new Date().toISOString() 
     });
+
     if (!error) toast.success("Perfil atualizado!");
     else toast.error("Erro ao salvar perfil");
     setSaving(false);
@@ -147,13 +146,7 @@ const ProfilePage = () => {
             </div>
             <label className="absolute bottom-1 right-1 bg-study-primary text-white p-2.5 rounded-full cursor-pointer shadow-lg border-2 border-white hover:scale-110 transition-transform active:scale-95">
               <Camera size={20} />
-              <input 
-                type="file" 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handleAvatarUpload} 
-                disabled={uploading}
-              />
+              <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={uploading} />
             </label>
           </div>
           <p className="mt-4 text-study-medium font-bold text-xs uppercase tracking-widest">{user?.email}</p>
@@ -169,50 +162,48 @@ const ProfilePage = () => {
             <CardContent className="pt-6 space-y-4">
               <div className="space-y-1">
                 <Label className="text-[10px] font-bold uppercase ml-1">Nome Completo</Label>
-                <Input 
-                  value={profile.name} 
-                  onChange={e => setProfile({...profile, name: e.target.value})} 
-                  className="rounded-xl" 
-                />
+                <Input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="rounded-xl" />
               </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase ml-1">Data de Nascimento</Label>
-                <div className="relative">
-                  <Input 
-                    type="date"
-                    value={profile.birthday} 
-                    onChange={e => setProfile({...profile, birthday: e.target.value})} 
-                    className="rounded-xl pl-10" 
-                  />
-                  <Cake className="absolute left-3 top-1/2 -translate-y-1/2 text-study-primary" size={18} />
+              
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold uppercase ml-1">Dia e Mês do Aniversário</Label>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Select value={birthDay} onValueChange={setBirthDay}>
+                      <SelectTrigger className="rounded-xl h-11">
+                        <SelectValue placeholder="Dia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-[2]">
+                    <Select value={birthMonth} onValueChange={setBirthMonth}>
+                      <SelectTrigger className="rounded-xl h-11">
+                        <SelectValue placeholder="Mês" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map(m => <SelectItem key={m.val} value={m.val}>{m.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+                <p className="text-[9px] text-study-medium ml-1 italic">* O ano não será exibido nem solicitado.</p>
               </div>
+
               <div className="space-y-1">
                 <Label className="text-[10px] font-bold uppercase ml-1">Curso</Label>
-                <Input 
-                  value={profile.course} 
-                  onChange={e => setProfile({...profile, course: e.target.value})} 
-                  className="rounded-xl" 
-                />
+                <Input value={profile.course} onChange={e => setProfile({...profile, course: e.target.value})} className="rounded-xl" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label className="text-[10px] font-bold uppercase ml-1">Período</Label>
-                  <Input 
-                    value={profile.period} 
-                    onChange={e => setProfile({...profile, period: e.target.value})} 
-                    placeholder="Ex: 5º Período" 
-                    className="rounded-xl" 
-                  />
+                  <Input value={profile.period} onChange={e => setProfile({...profile, period: e.target.value})} placeholder="Ex: 5º Período" className="rounded-xl" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] font-bold uppercase ml-1">Ano Conclusão</Label>
-                  <Input 
-                    value={profile.completion_year} 
-                    onChange={e => setProfile({...profile, completion_year: e.target.value})} 
-                    placeholder="Ex: 2026" 
-                    className="rounded-xl" 
-                  />
+                  <Input value={profile.completion_year} onChange={e => setProfile({...profile, completion_year: e.target.value})} placeholder="Ex: 2026" className="rounded-xl" />
                 </div>
               </div>
               <Button onClick={handleSave} disabled={saving} className="w-full bg-study-primary rounded-xl mt-2 font-bold py-6">
@@ -226,7 +217,6 @@ const ProfilePage = () => {
             <h2 className="text-lg font-black text-study-dark dark:text-white flex items-center gap-2 px-2">
               <History className="text-study-primary" size={20} /> Histórico de Simulados
             </h2>
-            
             {quizHistory.length === 0 ? (
               <p className="text-center py-10 text-study-medium text-sm">Você ainda não realizou simulados.</p>
             ) : (
@@ -234,9 +224,7 @@ const ProfilePage = () => {
                 <Card key={quiz.id} className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden group">
                   <div className="p-5 flex items-center justify-between">
                     <div className="flex gap-4">
-                      <div className="bg-study-primary/10 p-3 rounded-2xl">
-                        <Award className="text-study-primary" size={24} />
-                      </div>
+                      <div className="bg-study-primary/10 p-3 rounded-2xl"><Award className="text-study-primary" size={24} /></div>
                       <div>
                         <h3 className="font-bold text-study-dark dark:text-white text-sm">{quiz.subject_name}</h3>
                         <p className="text-[10px] text-study-medium font-bold uppercase">
@@ -245,15 +233,9 @@ const ProfilePage = () => {
                       </div>
                     </div>
                     <div className="text-right flex flex-col items-end gap-2">
-                      <Badge className={cn(
-                        "rounded-full px-3",
-                        (quiz.score / quiz.total_questions) >= 0.7 ? "bg-green-500" : "bg-red-500"
-                      )}>
+                      <Badge className={cn("rounded-full px-3", (quiz.score / quiz.total_questions) >= 0.7 ? "bg-green-500" : "bg-red-500")}>
                         {quiz.score}/{quiz.total_questions} Acertos
                       </Badge>
-                      <button onClick={() => deleteHistoryItem(quiz.id)} className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1">
-                        <Trash2 size={14} />
-                      </button>
                     </div>
                   </div>
                 </Card>
