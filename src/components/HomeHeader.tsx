@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import NotificationList from './NotificationList';
 import { useNavigate } from 'react-router-dom';
-import { addDays, format, parseISO } from 'date-fns';
+import { addDays, format, parseISO, differenceInDays, startOfDay, setYear, isBefore, addYears } from 'date-fns';
 
 const HomeHeader = () => {
   const { user } = useAuth();
@@ -42,13 +42,8 @@ const HomeHeader = () => {
 
   const fetchNotifications = async () => {
     try {
-      const today = new Date();
-      
-      // Datas para comparação
+      const today = startOfDay(new Date());
       const tomorrowStr = format(addDays(today, 1), 'yyyy-MM-dd');
-      const targetBday = addDays(today, 4);
-      const targetBdayMonthDay = format(targetBday, 'MM-dd'); // Ex: "05-20"
-
       const alerts: any[] = [];
 
       // 1. Buscar Provas para Amanhã
@@ -68,8 +63,7 @@ const HomeHeader = () => {
         });
       }
 
-      // 2. Buscar Aniversários (4 dias de antecedência)
-      // Buscamos todos os perfis (a política RLS profiles_read_all permite isso)
+      // 2. Buscar Aniversários (Janela de 5 dias: Hoje até +4 dias)
       const { data: bdays } = await supabase
         .from('profiles')
         .select('id, name, birthday, avatar_url');
@@ -77,20 +71,37 @@ const HomeHeader = () => {
       if (bdays) {
         bdays.forEach(p => {
           if (p.birthday) {
-            // O formato no banco é YYYY-MM-DD. Pegamos apenas o MM-DD.
-            const bdayMonthDay = p.birthday.substring(5);
+            // Pegamos o Mês e Dia do BD (formato YYYY-MM-DD)
+            const [_, month, day] = p.birthday.split('-');
             
-            if (bdayMonthDay === targetBdayMonthDay) {
+            // Criamos a data do aniversário no ano atual
+            let bdayThisYear = setYear(new Date(), today.getFullYear());
+            bdayThisYear.setMonth(parseInt(month) - 1);
+            bdayThisYear.setDate(parseInt(day));
+            bdayThisYear = startOfDay(bdayThisYear);
+
+            // Se o aniversário já passou este ano, verificamos o do ano que vem (para a virada de ano)
+            if (isBefore(bdayThisYear, today) && differenceInDays(today, bdayThisYear) > 0) {
+              bdayThisYear = addYears(bdayThisYear, 1);
+            }
+
+            const diff = differenceInDays(bdayThisYear, today);
+
+            // Se for hoje ou nos próximos 4 dias
+            if (diff >= 0 && diff <= 4) {
               alerts.push({
                 id: `bday-${p.id}`,
                 subject: p.name || "Estudante",
-                date: format(targetBday, 'yyyy-MM-dd'),
+                date: bdayThisYear.toISOString(), // Usamos a data calculada
                 type: 'birthday'
               });
             }
           }
         });
       }
+
+      // Ordenar por proximidade (mais próximos primeiro)
+      alerts.sort((a, b) => differenceInDays(parseISO(a.date), today) - differenceInDays(parseISO(b.date), today));
 
       setNotifications(alerts);
     } catch (err) {
