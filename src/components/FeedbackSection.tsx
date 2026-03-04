@@ -18,7 +18,8 @@ interface Feedback {
   rating: number;
   comment: string;
   created_at: string;
-  profiles: {
+  user_id: string;
+  profiles?: {
     name: string;
   } | null;
 }
@@ -31,17 +32,45 @@ const FeedbackSection = () => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
 
+  const fetchFeedbacks = async () => {
+    try {
+      // Buscamos os feedbacks e tentamos trazer o nome do perfil associado
+      const { data, error } = await supabase
+        .from('app_feedback')
+        .select(`
+          id, 
+          rating, 
+          comment, 
+          created_at, 
+          user_id,
+          profiles (name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Erro ao buscar feedbacks:", error);
+        return;
+      }
+
+      setFeedbacks(data as any || []);
+    } catch (err) {
+      console.error("Erro inesperado:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchFeedbacks();
 
-    // ESCUTA EM TEMPO REAL: Qualquer novo feedback ou exclusão atualiza a lista de todos
+    // Inscrição em tempo real para atualizações automáticas
     const channel = supabase
-      .channel('public:app_feedback')
+      .channel('schema-db-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_feedback' },
         () => {
-          fetchFeedbacks(); // Recarrega a lista completa para garantir os nomes dos perfis (joins)
+          fetchFeedbacks();
         }
       )
       .subscribe();
@@ -51,19 +80,9 @@ const FeedbackSection = () => {
     };
   }, []);
 
-  const fetchFeedbacks = async () => {
-    const { data, error } = await supabase
-      .from('app_feedback')
-      .select('*, profiles(name)')
-      .order('created_at', { ascending: false });
-
-    if (!error) setFeedbacks(data as any || []);
-    setLoading(false);
-  };
-
   const handleSendFeedback = async () => {
-    if (rating === 0) return toast.error("Selecione uma nota de 1 a 5 estrelas.");
-    if (!comment.trim()) return toast.error("Escreva um breve comentário.");
+    if (rating === 0) return toast.error("Por favor, selecione as estrelas.");
+    if (!comment.trim()) return toast.error("Escreva um comentário.");
 
     setSending(true);
     try {
@@ -77,13 +96,15 @@ const FeedbackSection = () => {
 
       if (error) throw error;
 
-      toast.success("Obrigado pelo seu feedback!");
+      toast.success("Feedback enviado com sucesso!");
       setComment("");
       setRating(0);
-      // O Realtime cuidará de atualizar a lista automaticamente
+      
+      // Forçamos a atualização imediata da lista
+      fetchFeedbacks();
     } catch (err: any) {
+      toast.error("Erro ao salvar feedback.");
       console.error(err);
-      toast.error("Erro ao enviar avaliação.");
     } finally {
       setSending(false);
     }
@@ -91,23 +112,37 @@ const FeedbackSection = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Remover esta avaliação?")) return;
-    const { error } = await supabase.from('app_feedback').delete().eq('id', id);
-    if (error) toast.error("Erro ao remover.");
-    else toast.success("Feedback removido.");
+    try {
+      const { error } = await supabase.from('app_feedback').delete().eq('id', id);
+      if (error) throw error;
+      toast.success("Removido com sucesso.");
+      fetchFeedbacks();
+    } catch (err) {
+      toast.error("Erro ao remover.");
+    }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 px-1">
-        <MessageSquare className="text-study-primary" size={18} />
-        <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest">Mural de Feedbacks</h2>
+    <div className="space-y-6 w-full">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="text-study-primary" size={18} />
+          <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest">Mural da Comunidade</h2>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={fetchFeedbacks}
+          className="h-7 text-[10px] font-bold text-study-primary hover:bg-study-primary/10"
+        >
+          {loading ? <Loader2 className="animate-spin size-3" /> : "Atualizar Mural"}
+        </Button>
       </div>
 
+      {/* Formulário de Envio */}
       <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
         <CardHeader className="bg-study-light/20 pb-4">
-          <CardTitle className="text-sm font-black flex items-center gap-2 text-study-dark">
-            Sua opinião sobre o App
-          </CardTitle>
+          <CardTitle className="text-sm font-black text-study-dark">Sua avaliação</CardTitle>
         </CardHeader>
         <CardContent className="pt-6 space-y-4">
           <div className="flex justify-center gap-2">
@@ -115,7 +150,7 @@ const FeedbackSection = () => {
               <button
                 key={star}
                 onClick={() => setRating(star)}
-                className="transition-transform active:scale-90"
+                className="transition-all hover:scale-110 active:scale-90"
               >
                 <Star 
                   size={32} 
@@ -129,48 +164,49 @@ const FeedbackSection = () => {
           </div>
           
           <Textarea 
-            placeholder="O que podemos melhorar no Estuda AÍ?" 
+            placeholder="O que você está achando do app?" 
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="rounded-xl border-zinc-800 bg-zinc-800/30 min-h-[100px] text-white"
+            className="rounded-xl border-zinc-800 bg-zinc-800/30 min-h-[80px] text-white focus:border-study-primary"
           />
 
           <Button 
             onClick={handleSendFeedback} 
             disabled={sending} 
-            className="w-full bg-study-primary text-white rounded-xl font-bold py-6 gap-2"
+            className="w-full bg-study-primary hover:bg-study-primary/90 text-white rounded-xl font-bold py-6 gap-2"
           >
             {sending ? <Loader2 className="animate-spin" /> : <Send size={18} />}
-            Enviar Feedback para Todos
+            Publicar no Mural
           </Button>
         </CardContent>
       </Card>
 
+      {/* Lista de Avaliações */}
       <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
-        <CardHeader className="border-b border-zinc-800 bg-zinc-800/20">
-          <CardTitle className="text-xs font-black text-study-medium uppercase tracking-widest">
-            Comunidade ({feedbacks.length} avaliações)
+        <CardHeader className="border-b border-zinc-800/50 bg-zinc-800/10">
+          <CardTitle className="text-[10px] font-black text-study-medium uppercase tracking-widest">
+            Feedbacks Recentes
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[450px] w-full p-4">
-            {loading ? (
-              <div className="flex justify-center py-10"><Loader2 className="animate-spin text-study-primary" size={32} /></div>
+          <ScrollArea className="h-[400px] w-full p-4">
+            {loading && feedbacks.length === 0 ? (
+              <div className="flex justify-center py-20"><Loader2 className="animate-spin text-study-primary" size={32} /></div>
             ) : feedbacks.length === 0 ? (
-              <div className="text-center py-16 opacity-40">
-                <MessageSquare className="mx-auto mb-2 text-study-medium" size={32} />
-                <p className="text-xs font-bold uppercase tracking-widest text-study-medium">Seja o primeiro a avaliar!</p>
+              <div className="text-center py-20 opacity-30">
+                <MessageSquare className="mx-auto mb-2" size={32} />
+                <p className="text-xs font-bold uppercase tracking-widest">Seja o primeiro a avaliar</p>
               </div>
             ) : (
               <div className="flex flex-col gap-4">
                 {feedbacks.map((item) => (
-                  <div key={item.id} className="p-4 rounded-2xl bg-zinc-800/40 border border-zinc-800/50 relative group animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div key={item.id} className="p-4 rounded-2xl bg-zinc-800/40 border border-zinc-800/50 relative group transition-all hover:bg-zinc-800/60">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="bg-study-primary/10 p-1.5 rounded-lg">
                           <User size={12} className="text-study-primary" />
                         </div>
-                        <span className="text-xs font-black text-study-dark truncate max-w-[150px]">
+                        <span className="text-xs font-black text-study-dark truncate max-w-[140px]">
                           {item.profiles?.name || "Estudante"}
                         </span>
                       </div>
@@ -181,19 +217,18 @@ const FeedbackSection = () => {
                       </div>
                     </div>
                     
-                    <p className="text-sm text-zinc-300 leading-relaxed">
+                    <p className="text-sm text-zinc-300 leading-relaxed font-medium">
                       {item.comment}
                     </p>
                     
                     <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
-                      <span className="text-[9px] font-bold text-study-medium uppercase tracking-tighter">
+                      <span className="text-[9px] font-bold text-study-medium uppercase opacity-60">
                         {format(new Date(item.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
                       </span>
                       {isAdmin && (
                         <button 
                           onClick={() => handleDelete(item.id)}
-                          className="p-1 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                          title="Remover (Admin)"
+                          className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                         >
                           <Trash2 size={14} />
                         </button>
