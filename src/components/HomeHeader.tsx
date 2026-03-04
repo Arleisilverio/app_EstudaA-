@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import NotificationList from './NotificationList';
 import { useNavigate } from 'react-router-dom';
+import { addDays, format, parseISO } from 'date-fns';
 
 const HomeHeader = () => {
   const { user } = useAuth();
@@ -19,12 +20,12 @@ const HomeHeader = () => {
   useEffect(() => {
     if (user) {
       fetchData();
+      fetchNotifications();
     }
   }, [user]);
 
   const fetchData = async () => {
     try {
-      setLoading(true);
       const { data: profileData } = await supabase
         .from('profiles')
         .select('name, course, period, avatar_url')
@@ -32,11 +33,65 @@ const HomeHeader = () => {
         .single();
       
       if (profileData) setProfile(profileData);
-      setNotifications([]); 
     } catch (err) {
       console.error("Erro ao carregar perfil:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const today = new Date();
+      const tomorrowStr = format(addDays(today, 1), 'yyyy-MM-dd');
+      const fourDaysAhead = addDays(today, 4);
+      const dayMonthAhead = format(fourDaysAhead, 'MM-dd'); // Formato para comparar aniversário
+
+      const alerts: any[] = [];
+
+      // 1. Buscar Provas para Amanhã
+      const { data: exams } = await supabase
+        .from('exams')
+        .select('id, subject, date, time')
+        .eq('date', tomorrowStr);
+
+      if (exams) {
+        exams.forEach(exam => {
+          alerts.push({
+            id: exam.id,
+            subject: `Prova: ${exam.subject}`,
+            date: exam.date,
+            type: 'exam'
+          });
+        });
+      }
+
+      // 2. Buscar Aniversários (4 dias de antecedência)
+      // Nota: Como o ano no banco pode variar, comparamos apenas mês e dia
+      const { data: bdays } = await supabase
+        .from('profiles')
+        .select('id, name, birthday');
+
+      if (bdays) {
+        bdays.forEach(p => {
+          if (p.birthday) {
+            // O aniversário no banco está como YYYY-MM-DD
+            const bdayPart = p.birthday.substring(5); // Pega apenas MM-DD
+            if (bdayPart === dayMonthAhead) {
+              alerts.push({
+                id: `bday-${p.id}`,
+                subject: p.name || "Colega",
+                date: format(fourDaysAhead, 'yyyy-MM-dd'),
+                type: 'birthday'
+              });
+            }
+          }
+        });
+      }
+
+      setNotifications(alerts);
+    } catch (err) {
+      console.error("Erro nas notificações:", err);
     }
   };
 
