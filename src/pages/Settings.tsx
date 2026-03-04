@@ -19,6 +19,7 @@ import BottomNav from "@/components/BottomNav";
 import { showError, showSuccess } from "@/utils/toast";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import FeedbackSection from '@/components/FeedbackSection';
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -66,7 +67,10 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-10">
+          {/* Nova Seção de Feedback */}
+          <FeedbackSection />
+
           {/* Legal e Suporte */}
           <section className="space-y-3">
             <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Legal e Suporte</h2>
