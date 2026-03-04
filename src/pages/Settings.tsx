@@ -88,7 +88,10 @@ const SettingsPage = () => {
                   </div>
                   <ChevronRight size={18} className="text-study-medium" />
                 </button>
-                <button className="w-full flex items-center justify-between p-4 px-6 hover:bg-study-light/10 transition-colors">
+                <button 
+                  onClick={() => navigate('/support')}
+                  className="w-full flex items-center justify-between p-4 px-6 hover:bg-study-light/10 transition-colors"
+                >
                   <div className="flex items-center gap-3">
                     <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-xl">
                       <ExternalLink size={18} className="text-blue-600" />

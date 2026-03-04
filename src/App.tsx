@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Events from "./pages/Events";
 import Terms from "./pages/Terms";
 import Login from "./pages/Login";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const AppRoutes = () => (
     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
     <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
     <Route path="/terms" element={<Terms />} />
+    <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
