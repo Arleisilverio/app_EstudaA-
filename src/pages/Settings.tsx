@@ -1,7 +1,7 @@
 "use client";
 
-import React from 'react';
-import { Settings as SettingsIcon, ShieldAlert, Trash2, ChevronRight, LogOut, ExternalLink, Moon } from 'lucide-react';
+import React, { useState } from 'react';
+import { Settings as SettingsIcon, ShieldAlert, Trash2, ChevronRight, LogOut, ExternalLink, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -18,10 +18,12 @@ import {
 import BottomNav from "@/components/BottomNav";
 import { showError, showSuccess } from "@/utils/toast";
 import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
 
 const SettingsPage = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -30,6 +32,24 @@ const SettingsPage = () => {
       navigate("/login");
     } catch (error) {
       showError("Erro ao sair da conta");
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-account');
+
+      if (error) throw error;
+
+      showSuccess("Conta excluída com sucesso.");
+      await signOut();
+      navigate("/login");
+    } catch (error: any) {
+      console.error("Erro ao excluir conta:", error);
+      showError("Não foi possível excluir sua conta agora.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -47,27 +67,9 @@ const SettingsPage = () => {
         </div>
 
         <div className="space-y-6">
-          {/* Aparência (Informativo apenas) */}
-          <section className="space-y-3">
-            <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Personalização</h2>
-            <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
-              <CardContent className="p-0">
-                <div className="flex items-center justify-between p-4 px-6 opacity-60">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-xl">
-                      <Moon size={18} className="text-amber-600" />
-                    </div>
-                    <span className="font-bold text-study-dark dark:text-zinc-200">Modo Escuro (Padrão)</span>
-                  </div>
-                  <span className="text-[10px] font-black text-study-primary uppercase tracking-tighter">Ativado</span>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
           {/* Legal e Suporte */}
           <section className="space-y-3">
-            <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Legal</h2>
+            <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Legal e Suporte</h2>
             <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
               <CardContent className="p-0">
                 <button 
@@ -97,7 +99,7 @@ const SettingsPage = () => {
 
           {/* Zona de Perigo */}
           <section className="space-y-3">
-            <h2 className="text-xs font-bold text-red-500 uppercase tracking-widest ml-1">Gerenciamento</h2>
+            <h2 className="text-xs font-bold text-red-500 uppercase tracking-widest ml-1">Gerenciamento de Conta</h2>
             <Card className="border-2 border-red-100 dark:border-red-900/20 shadow-none bg-red-50/30 dark:bg-red-900/5 rounded-3xl overflow-hidden">
               <CardContent className="p-0">
                 <AlertDialog>
@@ -110,20 +112,21 @@ const SettingsPage = () => {
                       <ChevronRight size={18} />
                     </button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent className="rounded-3xl border-none">
+                  <AlertDialogContent className="rounded-3xl border-none bg-zinc-900 text-white">
                     <AlertDialogHeader>
-                      <AlertDialogTitle className="text-xl font-bold text-study-dark">Tem certeza absoluta?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta ação não pode ser desfeita. Isso excluirá permanentemente seu perfil e todo seu progresso.
+                      <AlertDialogTitle className="text-xl font-bold">Tem certeza absoluta?</AlertDialogTitle>
+                      <AlertDialogDescription className="text-zinc-400">
+                        Esta ação é **irreversível**. Todos os seus dados, históricos de simulados, provas agendadas e documentos enviados serão excluídos permanentemente de nossos servidores.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                      <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+                      <AlertDialogCancel className="rounded-xl bg-zinc-800 border-none text-white hover:bg-zinc-700">Não, manter conta</AlertDialogCancel>
                       <AlertDialogAction 
-                        onClick={() => showError("Funcionalidade bloqueada nesta versão")}
-                        className="bg-red-600 hover:bg-red-700 text-white rounded-xl"
+                        onClick={handleDeleteAccount}
+                        disabled={isDeleting}
+                        className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
                       >
-                        Confirmar Exclusão
+                        {isDeleting ? <Loader2 className="animate-spin" /> : "Sim, excluir tudo"}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
