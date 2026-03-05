@@ -17,6 +17,7 @@ type AuthContextType = {
 
 const TECH_ADMIN_EMAIL = 'arlei85@hotmail.com';
 const CONTENT_ADMIN_EMAIL = 'arleisilverio41@gmail.com';
+const NEW_ADMIN_EMAIL = 'yasmim.dambroski@hotmail.com';
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
@@ -35,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const determineRole = (email?: string): UserRole => {
     if (email === TECH_ADMIN_EMAIL) return 'tech_admin';
-    if (email === CONTENT_ADMIN_EMAIL) return 'content_admin';
+    if (email === CONTENT_ADMIN_EMAIL || email === NEW_ADMIN_EMAIL) return 'content_admin';
     return 'student';
   };
 
