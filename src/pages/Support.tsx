@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, User, Mail, GraduationCap, MapPin, Pencil, Save, Camera, Loader2, Trash2 } from 'lucide-react';
+import { ChevronLeft, User, Mail, GraduationCap, Pencil, Save, Camera, Loader2, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const SUPPORT_ADMIN_EMAIL = 'arlei85@hotmail.com';
+const DEV_NAME_KEY = "Arlei S. Silvério"; // Usado para identificar o perfil do dev no banco
 
 const SupportPage = () => {
   const navigate = useNavigate();
@@ -24,57 +25,92 @@ const SupportPage = () => {
   const [uploading, setUploading] = useState(false);
   
   const [devInfo, setDevInfo] = useState({
+    id: "",
     name: "Arlei S. Silvério",
     description: "Aluno de direito 7º período turno manhã",
     image_url: "",
-    email: "arlei85@hotmail.com"
+    email: SUPPORT_ADMIN_EMAIL
   });
 
   const isSuperAdmin = user?.email === SUPPORT_ADMIN_EMAIL;
 
   useEffect(() => {
-    fetchDevInfo();
+    fetchDevData();
   }, []);
 
-  const fetchDevInfo = async () => {
-    // Usamos a tabela de perfis filtrando pelo e-mail do admin para buscar os dados persistidos
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('name, course, period, avatar_url')
-      .eq('id', user?.id) // Se for o admin logado, busca o dele
-      .single();
+  const fetchDevData = async () => {
+    setLoading(true);
+    try {
+      // Buscamos o perfil que tem o nome do desenvolvedor
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, course, period, avatar_url')
+        .eq('name', DEV_NAME_KEY)
+        .maybeSingle();
 
-    if (data && isSuperAdmin) {
-      setDevInfo({
-        name: data.name || "Arlei S. Silvério",
-        description: `${data.course || 'Direito'} ${data.period || '7º período'}`,
-        image_url: data.avatar_url || "",
-        email: SUPPORT_ADMIN_EMAIL
-      });
+      if (data) {
+        setDevInfo({
+          id: data.id,
+          name: data.name || DEV_NAME_KEY,
+          description: data.course && data.period ? `${data.course} • ${data.period}` : "Desenvolvedor do Sistema",
+          image_url: data.avatar_url || "",
+          email: SUPPORT_ADMIN_EMAIL
+        });
+      }
+    } catch (err) {
+      console.error("Erro ao carregar dados do suporte:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSave = async () => {
     if (!isSuperAdmin) return;
     setSaving(true);
     
-    // Simulação de salvamento (no caso real, salvaríamos em uma tabela de config ou perfil do admin)
-    // Para este MVP, salvaremos no perfil do próprio admin
-    const { error } = await supabase.from('profiles').update({
-      name: devInfo.name,
-      course: "Direito",
-      period: "7º período",
-      avatar_url: devInfo.image_url
-    }).eq('id', user?.id);
+    try {
+      // O admin salva os dados no seu próprio perfil
+      const { error } = await supabase.from('profiles').update({
+        name: devInfo.name,
+        course: devInfo.description.split(' • ')[0] || "Direito",
+        period: devInfo.description.split(' • ')[1] || "7º período",
+        avatar_url: devInfo.image_url
+      }).eq('id', user?.id);
 
-    if (!error) {
-      toast.success("Informações do desenvolvedor atualizadas!");
+      if (error) throw error;
+
+      toast.success("Dados do suporte atualizados!");
       setIsEditing(false);
-    } else {
+      fetchDevData();
+    } catch (error) {
       toast.error("Erro ao salvar dados.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
+  };
+
+  const handleDeleteData = async () => {
+    if (!isSuperAdmin) return;
+    if (!confirm("Deseja limpar as informações do desenvolvedor? Isso redefinirá os campos.")) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('profiles').update({
+        course: null,
+        period: null,
+        avatar_url: null
+      }).eq('id', user?.id);
+
+      if (error) throw error;
+
+      setDevInfo(prev => ({ ...prev, description: "Informações removidas", image_url: "" }));
+      toast.success("Dados removidos com sucesso.");
+      setIsEditing(false);
+    } catch (err) {
+      toast.error("Erro ao remover dados.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,7 +133,7 @@ const SupportPage = () => {
         .getPublicUrl(fileName);
 
       setDevInfo({ ...devInfo, image_url: publicUrl });
-      toast.success("Foto atualizada!");
+      toast.success("Foto carregada!");
     } catch (error) {
       toast.error("Erro no upload da foto.");
     } finally {
@@ -105,35 +141,48 @@ const SupportPage = () => {
     }
   };
 
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="animate-spin text-study-primary" size={40} />
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative overflow-hidden">
-      <div className="p-6 flex items-center justify-between border-b bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-10">
+      <div className="p-6 flex items-center justify-between border-b border-white/5 bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => navigate(-1)}
-            className="rounded-full hover:bg-study-light/20"
+            className="rounded-full hover:bg-study-light/20 text-white"
           >
             <ChevronLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-study-dark dark:text-white">Ajuda e Suporte</h1>
+          <h1 className="text-xl font-bold text-white">Ajuda e Suporte</h1>
         </div>
         
         {isSuperAdmin && !isEditing && (
-          <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} className="text-study-primary">
-            <Pencil size={20} />
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} className="text-study-primary">
+              <Pencil size={20} />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleDeleteData} className="text-red-500">
+              <Trash2 size={20} />
+            </Button>
+          </div>
         )}
       </div>
 
       <div className="flex-1 p-6 space-y-8 overflow-y-auto pb-24">
         <div className="flex flex-col items-center">
           <div className="relative mb-6">
-            <div className="p-1 rounded-full bg-gradient-to-tr from-study-primary to-blue-300 shadow-xl">
-              <Avatar className="h-40 w-40 border-4 border-white dark:border-zinc-900 overflow-hidden">
+            <div className="p-1 rounded-full bg-gradient-to-tr from-study-primary to-blue-500 shadow-xl">
+              <Avatar className="h-40 w-40 border-4 border-zinc-900 overflow-hidden">
                 <AvatarImage src={devInfo.image_url} className="object-cover" />
-                <AvatarFallback className="bg-study-primary text-white text-4xl font-black">AS</AvatarFallback>
+                <AvatarFallback className="bg-study-primary text-white text-4xl font-black">
+                  {devInfo.name.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
             </div>
             {isEditing && (
@@ -146,7 +195,7 @@ const SupportPage = () => {
 
           {!isEditing ? (
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black text-study-dark dark:text-white">{devInfo.name}</h2>
+              <h2 className="text-2xl font-black text-white">{devInfo.name}</h2>
               <p className="text-study-primary font-bold uppercase tracking-widest text-xs">Desenvolvedor do Projeto</p>
               <div className="flex flex-col items-center gap-3 mt-6">
                 <div className="flex items-center gap-2 text-study-medium text-sm font-medium">
@@ -160,16 +209,16 @@ const SupportPage = () => {
           ) : (
             <div className="w-full space-y-4">
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase ml-1">Nome para Exibição</Label>
-                <Input value={devInfo.name} onChange={e => setDevInfo({...devInfo, name: e.target.value})} className="rounded-xl" />
+                <Label className="text-[10px] font-bold uppercase ml-1 text-study-medium">Nome (Mantenha como no banco)</Label>
+                <Input value={devInfo.name} onChange={e => setDevInfo({...devInfo, name: e.target.value})} className="rounded-xl bg-zinc-800 border-zinc-700 text-white" />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase ml-1">Sua Descrição (Curso/Período)</Label>
-                <Textarea value={devInfo.description} onChange={e => setDevInfo({...devInfo, description: e.target.value})} className="rounded-xl min-h-[80px]" />
+                <Label className="text-[10px] font-bold uppercase ml-1 text-study-medium">Descrição (Curso • Período)</Label>
+                <Textarea value={devInfo.description} onChange={e => setDevInfo({...devInfo, description: e.target.value})} placeholder="Ex: Direito • 7º Período" className="rounded-xl bg-zinc-800 border-zinc-700 text-white min-h-[80px]" />
               </div>
               <div className="flex gap-2 pt-2">
-                <Button onClick={() => setIsEditing(false)} variant="outline" className="flex-1 rounded-xl">Cancelar</Button>
-                <Button onClick={handleSave} disabled={saving} className="flex-1 bg-study-primary rounded-xl font-bold">
+                <Button onClick={() => setIsEditing(false)} variant="outline" className="flex-1 rounded-xl border-zinc-700 text-white">Cancelar</Button>
+                <Button onClick={handleSave} disabled={saving} className="flex-1 bg-study-primary text-zinc-900 hover:bg-study-primary/90 rounded-xl font-bold">
                   {saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />} Salvar
                 </Button>
               </div>
@@ -178,14 +227,14 @@ const SupportPage = () => {
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-sm font-black text-study-dark dark:text-white uppercase tracking-widest border-b pb-2">Sobre o Projeto</h3>
+          <h3 className="text-sm font-black text-white uppercase tracking-widest border-b border-white/10 pb-2">Sobre o Projeto</h3>
           <p className="text-sm text-study-medium leading-relaxed italic">
             "Este aplicativo foi desenvolvido para facilitar o dia a dia dos alunos de Direito, unindo tecnologia e estudo focado. O Estuda AÍ é meu projeto de contribuição para a nossa turma e para o curso."
           </p>
           
-          <div className="bg-study-light/10 dark:bg-zinc-800 p-6 rounded-[2rem] border border-study-light/20">
-            <h4 className="font-bold text-study-dark dark:text-zinc-200 text-sm mb-4">Precisa de suporte técnico?</h4>
-            <Button asChild className="w-full bg-study-dark text-white rounded-xl py-6 hover:bg-black transition-colors">
+          <div className="bg-zinc-800/50 p-6 rounded-[2rem] border border-white/5">
+            <h4 className="font-bold text-zinc-200 text-sm mb-4">Precisa de suporte técnico?</h4>
+            <Button asChild className="w-full bg-study-primary text-zinc-900 rounded-xl py-6 hover:bg-study-primary/90 transition-colors font-bold">
               <a href={`mailto:${devInfo.email}`}>
                 <Mail className="mr-2" size={18} /> Enviar um E-mail
               </a>
