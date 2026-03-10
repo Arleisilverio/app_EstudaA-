@@ -32,6 +32,23 @@ const FileSidebar = () => {
     if (subjectId) {
       fetchSubjectInfo();
       fetchDocuments();
+
+      // INSCRIÇÃO EM TEMPO REAL: Ouve novos documentos (do n8n ou outros admins)
+      const channel = supabase
+        .channel(`docs-${subjectId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'documents',
+          filter: `subject_id=eq.${subjectId}`
+        }, () => {
+          fetchDocuments();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [subjectId]);
 
@@ -97,11 +114,9 @@ const FileSidebar = () => {
 
       if (dbError) throw new Error(`Erro no Banco: ${dbError.message}`);
 
-      toast.success("Documento adicionado com sucesso!");
-      fetchDocuments();
+      toast.success("Documento adicionado!");
     } catch (err: any) {
-      console.error("Erro completo:", err);
-      toast.error(err.message || "Erro ao enviar arquivo");
+      toast.error(err.message || "Erro ao enviar");
     } finally {
       setIsUploading(false);
       event.target.value = '';
@@ -122,16 +137,15 @@ const FileSidebar = () => {
         .eq('id', id);
       
       if (error) throw error;
-      setDocuments(docs => docs.map(d => d.id === id ? { ...d, name: editName } : d));
       setEditingId(null);
-      toast.success("Documento renomeado");
+      toast.success("Renomeado");
     } catch (err) {
       toast.error("Erro ao renomear");
     }
   };
 
   const removeDoc = async (id: string) => {
-    if (!confirm("Excluir este documento da base de conhecimento?")) return;
+    if (!confirm("Excluir este documento?")) return;
     try {
       const { data: doc } = await supabase.from('documents').select('file_path').eq('id', id).single();
       const { error: dbError } = await supabase.from('documents').delete().eq('id', id);
@@ -139,8 +153,7 @@ const FileSidebar = () => {
       if (doc?.file_path) {
         await supabase.storage.from('documents').remove([doc.file_path]);
       }
-      setDocuments(docs => docs.filter(d => d.id !== id));
-      toast.success("Documento removido");
+      toast.success("Removido");
     } catch (err) {
       toast.error("Erro ao remover");
     }

@@ -34,6 +34,18 @@ const ExamsPage = () => {
 
   useEffect(() => {
     fetchExams();
+
+    // REAL-TIME: Ouve novas provas agendadas pelo Agente n8n
+    const channel = supabase
+      .channel('exams-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, () => {
+        fetchExams();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchExams = async () => {
@@ -89,7 +101,6 @@ const ExamsPage = () => {
     toast.promise(saveFn(), {
       loading: 'Salvando prova...',
       success: () => {
-        fetchExams();
         return editingExam ? "Prova atualizada!" : "Prova adicionada!";
       },
       error: 'Erro ao salvar dados'
@@ -107,7 +118,6 @@ const ExamsPage = () => {
     toast.promise(deleteFn(), {
       loading: 'Excluindo...',
       success: () => {
-        fetchExams();
         return "Prova excluída!";
       },
       error: 'Erro ao excluir'
