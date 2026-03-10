@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, Trash2, File, Loader2, Pencil, Save, X, CheckCircle2 } from 'lucide-react';
+import { Upload, FileText, Trash2, File, Loader2, Pencil, Save, X, CheckCircle2, Zap } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,24 +16,27 @@ interface Document {
   name: string;
   status: string;
   subject_id: string;
+  file_path: string;
 }
 
 const FileSidebar = () => {
   const { isAdmin, user } = useAuth();
   const { subjectId } = useParams();
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [subjectName, setSubjectName] = useState("");
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
+  const N8N_WEBHOOK_URL = "https://n8n.motoboot.com.br/webhook-test/estuda_ai";
+
   useEffect(() => {
     if (subjectId) {
       fetchSubjectInfo();
       fetchDocuments();
 
-      // INSCRIÇÃO EM TEMPO REAL: Ouve novos documentos (do n8n ou outros admins)
       const channel = supabase
         .channel(`docs-${subjectId}`)
         .on('postgres_changes', { 
@@ -78,6 +81,34 @@ const FileSidebar = () => {
     }
   };
 
+  const triggerN8nProcess = async (doc: Document) => {
+    setIsProcessing(doc.id);
+    try {
+      const response = await fetch(N8N_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'process_document',
+          document_id: doc.id,
+          file_path: doc.file_path,
+          subject_id: doc.subject_id,
+          subject_name: subjectName,
+          user_email: user?.email
+        })
+      });
+
+      if (response.ok) {
+        toast.success("n8n: Processamento iniciado!");
+      } else {
+        throw new Error();
+      }
+    } catch (err) {
+      toast.error("Erro ao comunicar com n8n");
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -95,14 +126,11 @@ const FileSidebar = () => {
 
       const { error: uploadError } = await supabase.storage
         .from('documents')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+        .upload(filePath, file);
 
-      if (uploadError) throw new Error(`Erro no Storage: ${uploadError.message}`);
+      if (uploadError) throw uploadError;
 
-      const { error: dbError } = await supabase
+      const { data: newDoc, error: dbError } = await supabase
         .from('documents')
         .insert([{
           name: file.name,
@@ -110,13 +138,19 @@ const FileSidebar = () => {
           subject_id: subjectId,
           user_id: user?.id,
           status: 'ready'
-        }]);
+        }])
+        .select()
+        .single();
 
-      if (dbError) throw new Error(`Erro no Banco: ${dbError.message}`);
+      if (dbError) throw dbError;
 
       toast.success("Documento adicionado!");
+      
+      // Opcional: Já dispara o n8n logo após o upload
+      if (newDoc) triggerN8nProcess(newDoc);
+
     } catch (err: any) {
-      toast.error(err.message || "Erro ao enviar");
+      toast.error("Erro ao enviar");
     } finally {
       setIsUploading(false);
       event.target.value = '';
@@ -131,12 +165,7 @@ const FileSidebar = () => {
   const saveRename = async (id: string) => {
     if (!editName.trim()) return;
     try {
-      const { error } = await supabase
-        .from('documents')
-        .update({ name: editName })
-        .eq('id', id);
-      
-      if (error) throw error;
+      await supabase.from('documents').update({ name: editName }).eq('id', id);
       setEditingId(null);
       toast.success("Renomeado");
     } catch (err) {
@@ -148,8 +177,7 @@ const FileSidebar = () => {
     if (!confirm("Excluir este documento?")) return;
     try {
       const { data: doc } = await supabase.from('documents').select('file_path').eq('id', id).single();
-      const { error: dbError } = await supabase.from('documents').delete().eq('id', id);
-      if (dbError) throw dbError;
+      await supabase.from('documents').delete().eq('id', id);
       if (doc?.file_path) {
         await supabase.storage.from('documents').remove([doc.file_path]);
       }
@@ -214,28 +242,42 @@ const FileSidebar = () => {
               ) : (
                 documents.map((doc) => (
                   <div key={doc.id} className="group relative flex flex-col gap-2 p-3 rounded-2xl bg-study-light/10 dark:bg-zinc-800/20 border border-study-light/10 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 transition-all shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-study-primary/10 p-2 rounded-xl h-fit">
-                        <FileText size={18} className="text-study-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        {editingId === doc.id ? (
-                          <div className="flex items-center gap-1">
-                            <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-7 text-xs rounded-lg" autoFocus />
-                            <button onClick={() => saveRename(doc.id)} className="text-green-500 p-1"><Save size={14} /></button>
-                            <button onClick={() => setEditingId(null)} className="text-red-400 p-1"><X size={14} /></button>
-                          </div>
-                        ) : (
-                          <>
-                            <p className="text-xs font-bold text-study-dark dark:text-zinc-200 truncate">{doc.name}</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="bg-study-primary/10 p-2 rounded-xl h-fit shrink-0">
+                          <FileText size={18} className="text-study-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          {editingId === doc.id ? (
                             <div className="flex items-center gap-1">
-                              <CheckCircle2 size={10} className="text-green-500" />
-                              <p className="text-[9px] text-green-600 dark:text-green-500 font-black uppercase tracking-tighter">Indexado</p>
+                              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-7 text-xs rounded-lg" autoFocus />
+                              <button onClick={() => saveRename(doc.id)} className="text-green-500 p-1"><Save size={14} /></button>
+                              <button onClick={() => setEditingId(null)} className="text-red-400 p-1"><X size={14} /></button>
                             </div>
-                          </>
-                        )}
+                          ) : (
+                            <>
+                              <p className="text-xs font-bold text-study-dark dark:text-zinc-200 truncate">{doc.name}</p>
+                              <div className="flex items-center gap-1">
+                                <CheckCircle2 size={10} className="text-green-500" />
+                                <p className="text-[9px] text-green-600 dark:text-green-500 font-black uppercase tracking-tighter">Pronto</p>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
+                      
+                      {isAdmin && !editingId && (
+                        <button 
+                          onClick={() => triggerN8nProcess(doc)}
+                          disabled={isProcessing === doc.id}
+                          className="shrink-0 p-1.5 bg-study-primary/10 text-study-primary rounded-lg hover:bg-study-primary hover:text-white transition-colors"
+                          title="Processar com n8n"
+                        >
+                          {isProcessing === doc.id ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                        </button>
+                      )}
                     </div>
+
                     {isAdmin && !editingId && (
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1 border-t border-study-light/20 pt-1">
                         <button onClick={() => startEditing(doc)} className="p-1.5 text-study-medium hover:text-study-primary hover:bg-study-light/30 rounded-lg"><Pencil size={12} /></button>
