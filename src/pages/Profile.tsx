@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Save, User, Loader2, History, Trash2, Award, Cake } from 'lucide-react';
+import { Camera, Save, User, Loader2, History, Trash2, Award, Cake, TrendingUp } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const DAYS = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
 const MONTHS = [
@@ -33,6 +34,7 @@ const ProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [quizHistory, setQuizHistory] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
   const [birthDay, setBirthDay] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [profile, setProfile] = useState({
@@ -74,8 +76,18 @@ const ProfilePage = () => {
       .from('quiz_history')
       .select('*')
       .eq('user_id', user?.id)
-      .order('created_at', { ascending: false });
-    if (data) setQuizHistory(data);
+      .order('created_at', { ascending: true }); // Para o gráfico, queremos cronológico
+
+    if (data) {
+      setQuizHistory([...data].reverse()); // Lista invertida para o histórico (mais novos primeiro)
+      
+      // Prepara dados para o gráfico
+      const formattedData = data.slice(-10).map((q: any) => ({
+        data: format(new Date(q.created_at), 'dd/MM'),
+        score: (q.score / q.total_questions) * 10, // Escala de 0 a 10
+      }));
+      setChartData(formattedData);
+    }
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,7 +116,6 @@ const ProfilePage = () => {
     if (!user) return;
     setSaving(true);
     
-    // Construímos a data usando o ano 2000 como padrão interno
     const birthdayString = birthDay && birthMonth ? `2000-${birthMonth}-${birthDay}` : null;
 
     const { error } = await supabase.from('profiles').upsert({ 
@@ -153,6 +164,50 @@ const ProfilePage = () => {
         </div>
 
         <div className="space-y-8">
+          {/* Gráfico de Evolução */}
+          {chartData.length > 1 && (
+            <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
+              <CardHeader className="bg-study-primary/10 pb-2">
+                <CardTitle className="text-xs font-black text-study-primary uppercase tracking-widest flex items-center gap-2">
+                  <TrendingUp size={16} /> Evolução de Notas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6 h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" />
+                    <XAxis 
+                      dataKey="data" 
+                      fontSize={10} 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'hsl(var(--study-medium))' }}
+                    />
+                    <YAxis 
+                      domain={[0, 10]} 
+                      fontSize={10} 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'hsl(var(--study-medium))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      labelStyle={{ fontWeight: 'bold' }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="score" 
+                      stroke="hsl(var(--study-primary))" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: 'hsl(var(--study-primary))', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem]">
             <CardHeader className="bg-study-light/20 pb-4">
               <CardTitle className="text-base flex items-center gap-2">
@@ -189,7 +244,6 @@ const ProfilePage = () => {
                     </Select>
                   </div>
                 </div>
-                <p className="text-[9px] text-study-medium ml-1 italic">* O ano não será exibido nem solicitado.</p>
               </div>
 
               <div className="space-y-1">
