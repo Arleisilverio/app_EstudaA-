@@ -4,7 +4,8 @@ import React from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
-import { Bird } from 'lucide-react';
+import { Bird, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const ResetPassword = () => {
   return (
@@ -22,13 +23,16 @@ const ResetPassword = () => {
           <Auth
             supabaseClient={supabase}
             view="update_password"
+            showLinks={false}
             appearance={{
               theme: ThemeSupa,
               variables: {
                 default: {
                   colors: {
-                    brand: 'hsl(221.2, 83.2%, 53.3%)',
-                    brandAccent: 'hsl(221.2, 83.2%, 43.3%)',
+                    brand: 'hsl(43, 100%, 59%)',
+                    brandAccent: 'hsl(43, 100%, 49%)',
+                    inputBackground: 'transparent',
+                    inputText: 'inherit',
                   },
                   radii: {
                     buttonBorderRadius: '1rem',
@@ -40,16 +44,22 @@ const ResetPassword = () => {
             localization={{
               variables: {
                 update_password: {
-                  password_label: 'Nova Senha',
+                  password_label: 'Crie uma nova senha segura',
                   password_input_placeholder: 'No mínimo 6 caracteres',
-                  button_label: 'Salvar Nova Senha',
-                  loading_button_label: 'Salvando...',
-                  confirmation_text: 'Sua senha foi atualizada com sucesso!',
+                  button_label: 'Atualizar Minha Senha',
+                  loading_button_label: 'Salvando nova senha...',
+                  confirmation_text: 'Senha atualizada! Você já pode entrar no app.',
                 }
               },
             }}
             theme="light"
           />
+          
+          <div className="mt-8 text-center">
+            <Link to="/login" className="text-xs font-bold text-study-primary uppercase tracking-widest hover:underline">
+              Voltar para o Login
+            </Link>
+          </div>
         </div>
       </div>
     </div>
