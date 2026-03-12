@@ -30,37 +30,62 @@ const AdminProfessors = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: profs } = await supabase.from('professors').select('*, subjects(name)').order('name');
-    const { data: subs } = await supabase.from('subjects').select('id, name').order('name');
-    
-    if (profs) setProfessors(profs);
-    if (subs) setSubjects(subs);
-    setLoading(false);
+    try {
+      // Buscamos os professores e tentamos trazer o nome da matéria associada
+      const { data: profs, error: profsError } = await supabase
+        .from('professors')
+        .select('*, subjects(name)')
+        .order('name');
+      
+      const { data: subs, error: subsError } = await supabase
+        .from('subjects')
+        .select('id, name')
+        .order('name');
+      
+      if (profsError) console.error("Erro ao carregar professores:", profsError.message);
+      if (subsError) console.error("Erro ao carregar matérias:", subsError.message);
+
+      if (profs) setProfessors(profs);
+      if (subs) setSubjects(subs);
+    } catch (err) {
+      console.error("Erro geral no fetch:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAdd = async () => {
     if (!formData.name || !formData.phone_number || !formData.subject_id) {
-      return toast.error("Preencha todos os campos.");
+      return toast.error("Preencha todos os campos obrigatórios.");
     }
 
     setSaving(true);
     try {
-      // Limpa o número (apenas dígitos)
+      // Limpa o número (apenas dígitos) para evitar erros de formatação no n8n
       const cleanPhone = formData.phone_number.replace(/\D/g, '');
       
+      if (cleanPhone.length < 10) {
+        setSaving(false);
+        return toast.error("Número de telefone muito curto.");
+      }
+
       const { error } = await supabase.from('professors').insert([{
         name: formData.name,
         phone_number: cleanPhone,
         subject_id: formData.subject_id
       }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro Supabase:", error);
+        throw new Error(error.message);
+      }
 
-      toast.success("Professor autorizado!");
+      toast.success("Professor autorizado com sucesso!");
       setFormData({ name: '', phone_number: '', subject_id: '' });
       fetchData();
-    } catch (err) {
-      toast.error("Erro ao cadastrar.");
+    } catch (err: any) {
+      // Agora o toast mostra o erro real retornado pelo banco
+      toast.error(`Erro: ${err.message || "Falha ao cadastrar"}`);
     } finally {
       setSaving(false);
     }
@@ -68,10 +93,14 @@ const AdminProfessors = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Remover autorização deste professor?")) return;
-    const { error } = await supabase.from('professors').delete().eq('id', id);
-    if (!error) {
-      toast.success("Removido.");
+    try {
+      const { error } = await supabase.from('professors').delete().eq('id', id);
+      if (error) throw error;
+      
+      toast.success("Professor removido da lista.");
       fetchData();
+    } catch (err: any) {
+      toast.error("Erro ao remover: " + err.message);
     }
   };
 
@@ -101,9 +130,9 @@ const AdminProfessors = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] uppercase ml-1 text-study-medium">WhatsApp (DDI + DDD + Num)</Label>
+                <Label className="text-[10px] uppercase ml-1 text-study-medium">WhatsApp (Ex: 5541999999999)</Label>
                 <Input 
-                  placeholder="Ex: 5541987922057" 
+                  placeholder="Apenas números com DDD" 
                   value={formData.phone_number}
                   onChange={e => setFormData({...formData, phone_number: e.target.value})}
                   className="rounded-xl bg-zinc-800 border-zinc-700 text-white" 
@@ -139,19 +168,19 @@ const AdminProfessors = () => {
             <div className="space-y-3">
               {professors.map((p) => (
                 <div key={p.id} className="p-4 rounded-2xl bg-zinc-800/40 border border-white/5 flex items-center justify-between group">
-                  <div className="flex gap-3">
-                    <div className="bg-study-primary/10 p-2 rounded-xl h-fit">
+                  <div className="flex gap-3 min-w-0">
+                    <div className="bg-study-primary/10 p-2 rounded-xl h-fit shrink-0">
                       <Phone size={16} className="text-study-primary" />
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-white">{p.name}</p>
-                      <p className="text-[10px] font-bold text-study-primary uppercase tracking-tighter">
-                        {p.subjects?.name}
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{p.name}</p>
+                      <p className="text-[10px] font-bold text-study-primary uppercase tracking-tighter truncate">
+                        {p.subjects?.name || "Matéria não encontrada"}
                       </p>
                       <p className="text-[9px] text-study-medium mt-0.5">ID: {p.phone_number}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleDelete(p.id)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg">
+                  <button onClick={() => handleDelete(p.id)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg shrink-0">
                     <Trash2 size={16} />
                   </button>
                 </div>
