@@ -15,9 +15,9 @@ type AuthContextType = {
   signOut: () => Promise<void>;
 };
 
-const TECH_ADMIN_EMAIL = 'arlei85@hotmail.com';
-const CONTENT_ADMIN_EMAIL = 'arleisilverio41@gmail.com';
-const NEW_ADMIN_EMAIL = 'yasmim.dambroski@hotmail.com';
+// Listas de e-mails com permissões especiais
+const TECH_ADMIN_EMAILS = ['arlei85@hotmail.com', 'arlei.se.silverio85@gmail.com'];
+const CONTENT_ADMIN_EMAILS = ['arleisilverio41@gmail.com', 'yasmim.dambroski@hotmail.com'];
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
@@ -35,18 +35,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [role, setRole] = useState<UserRole>('student');
 
   const determineRole = (email?: string): UserRole => {
-    if (email === TECH_ADMIN_EMAIL) return 'tech_admin';
-    if (email === CONTENT_ADMIN_EMAIL || email === NEW_ADMIN_EMAIL) return 'content_admin';
+    if (!email) return 'student';
+    if (TECH_ADMIN_EMAILS.includes(email)) return 'tech_admin';
+    if (CONTENT_ADMIN_EMAILS.includes(email)) return 'content_admin';
     return 'student';
   };
 
   useEffect(() => {
-    // Timeout de segurança
     const safetyTimeout = setTimeout(() => {
       if (loading) setLoading(false);
     }, 5000);
 
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       const currentUser = session?.user ?? null;
@@ -59,7 +58,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       clearTimeout(safetyTimeout);
     });
 
-    // Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       const currentUser = session?.user ?? null;
@@ -67,7 +65,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setRole(determineRole(currentUser?.email));
       setLoading(false);
 
-      // Se o evento for de recuperação de senha, redirecionamos para a página de nova senha
       if (event === 'PASSWORD_RECOVERY') {
         window.location.href = '/reset-password';
       }

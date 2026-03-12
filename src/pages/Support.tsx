@@ -13,8 +13,9 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-const SUPPORT_ADMIN_EMAIL = 'arlei85@hotmail.com';
-const DEV_NAME_KEY = "Arlei S. Silvério"; // Usado para identificar o perfil do dev no banco
+// E-mails autorizados a editar esta página
+const SUPPORT_ADMIN_EMAILS = ['arlei85@hotmail.com', 'arlei.se.silverio85@gmail.com'];
+const DEV_NAME_KEY = "Arlei S. Silvério"; 
 
 const SupportPage = () => {
   const navigate = useNavigate();
@@ -29,10 +30,10 @@ const SupportPage = () => {
     name: "Arlei S. Silvério",
     description: "Aluno de direito 7º período turno manhã",
     image_url: "",
-    email: SUPPORT_ADMIN_EMAIL
+    email: 'arlei.se.silverio85@gmail.com'
   });
 
-  const isSuperAdmin = user?.email === SUPPORT_ADMIN_EMAIL;
+  const isSuperAdmin = user?.email && SUPPORT_ADMIN_EMAILS.includes(user.email);
 
   useEffect(() => {
     fetchDevData();
@@ -41,8 +42,7 @@ const SupportPage = () => {
   const fetchDevData = async () => {
     setLoading(true);
     try {
-      // Buscamos o perfil que tem o nome do desenvolvedor
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('id, name, course, period, avatar_url')
         .eq('name', DEV_NAME_KEY)
@@ -54,7 +54,7 @@ const SupportPage = () => {
           name: data.name || DEV_NAME_KEY,
           description: data.course && data.period ? `${data.course} • ${data.period}` : "Desenvolvedor do Sistema",
           image_url: data.avatar_url || "",
-          email: SUPPORT_ADMIN_EMAIL
+          email: 'arlei.se.silverio85@gmail.com'
         });
       }
     } catch (err) {
@@ -69,7 +69,6 @@ const SupportPage = () => {
     setSaving(true);
     
     try {
-      // O admin salva os dados no seu próprio perfil
       const { error } = await supabase.from('profiles').update({
         name: devInfo.name,
         course: devInfo.description.split(' • ')[0] || "Direito",
