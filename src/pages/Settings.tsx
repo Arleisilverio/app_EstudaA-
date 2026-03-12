@@ -40,14 +40,11 @@ const SettingsPage = () => {
     setIsDeleting(true);
     try {
       const { data, error } = await supabase.functions.invoke('delete-account');
-
       if (error) throw error;
-
       showSuccess("Conta excluída com sucesso.");
       await signOut();
       navigate("/login");
     } catch (error: any) {
-      console.error("Erro ao excluir conta:", error);
       showError("Não foi possível excluir sua conta agora.");
     } finally {
       setIsDeleting(false);
@@ -68,25 +65,22 @@ const SettingsPage = () => {
         </div>
 
         <div className="space-y-10">
-          {/* Nova Seção de Feedback */}
-          <FeedbackSection />
-
           {/* Gestão de Curadoria (Apenas Admin) */}
           {isAdmin && (
-            <section className="space-y-3">
+            <section className="space-y-3 animate-in fade-in slide-in-from-left-4 duration-500">
               <h2 className="text-xs font-bold text-study-primary uppercase tracking-widest ml-1">Curadoria Inteligente</h2>
               <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border-l-4 border-study-primary">
                 <CardContent className="p-0">
                   <button 
                     onClick={() => navigate('/admin/professors')}
-                    className="w-full flex items-center justify-between p-4 px-6 hover:bg-study-light/10 transition-colors"
+                    className="w-full flex items-center justify-between p-5 px-6 hover:bg-study-light/10 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="bg-study-primary/20 p-2 rounded-xl">
-                        <Bot size={18} className="text-study-primary" />
+                      <div className="bg-study-primary/20 p-2.5 rounded-xl">
+                        <Bot size={22} className="text-study-primary" />
                       </div>
                       <div className="text-left">
-                        <span className="font-bold text-study-dark dark:text-zinc-200 block">Gestão n8n</span>
+                        <span className="font-bold text-study-dark dark:text-zinc-200 block text-sm">Gestão de Autores n8n</span>
                         <span className="text-[10px] text-study-medium font-bold uppercase tracking-tighter">Autorizar Números de WhatsApp</span>
                       </div>
                     </div>
@@ -97,7 +91,8 @@ const SettingsPage = () => {
             </section>
           )}
 
-          {/* Legal e Suporte */}
+          <FeedbackSection />
+
           <section className="space-y-3">
             <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Legal e Suporte</h2>
             <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
@@ -110,7 +105,7 @@ const SettingsPage = () => {
                     <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-xl">
                       <ShieldAlert size={18} className="text-green-600" />
                     </div>
-                    <span className="font-bold text-study-dark dark:text-zinc-200">Termos de Uso</span>
+                    <span className="font-bold text-study-dark dark:text-zinc-200 text-sm">Legal e Privacidade</span>
                   </div>
                   <ChevronRight size={18} className="text-study-medium" />
                 </button>
@@ -122,7 +117,7 @@ const SettingsPage = () => {
                     <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-xl">
                       <ExternalLink size={18} className="text-blue-600" />
                     </div>
-                    <span className="font-bold text-study-dark dark:text-zinc-200">Ajuda e Suporte</span>
+                    <span className="font-bold text-study-dark dark:text-zinc-200 text-sm">Suporte e Desenvolvedor</span>
                   </div>
                   <ChevronRight size={18} className="text-study-medium" />
                 </button>
@@ -130,7 +125,6 @@ const SettingsPage = () => {
             </Card>
           </section>
 
-          {/* Zona de Perigo */}
           <section className="space-y-3">
             <h2 className="text-xs font-bold text-red-500 uppercase tracking-widest ml-1">Gerenciamento de Conta</h2>
             <Card className="border-2 border-red-100 dark:border-red-900/20 shadow-none bg-red-50/30 dark:bg-red-900/5 rounded-3xl overflow-hidden">
@@ -140,20 +134,20 @@ const SettingsPage = () => {
                     <button className="w-full flex items-center justify-between p-4 px-6 text-red-600 border-b border-red-100/50 dark:border-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors">
                       <div className="flex items-center gap-3">
                         <Trash2 size={18} />
-                        <span className="font-bold">Excluir Minha Conta</span>
+                        <span className="font-bold text-sm">Excluir Minha Conta</span>
                       </div>
                       <ChevronRight size={18} />
                     </button>
                   </AlertDialogTrigger>
                   <AlertDialogContent className="rounded-3xl border-none bg-zinc-900 text-white">
                     <AlertDialogHeader>
-                      <AlertDialogTitle className="text-xl font-bold">Tem certeza absoluta?</AlertDialogTitle>
+                      <AlertDialogTitle className="text-xl font-bold">Excluir conta permanentemente?</AlertDialogTitle>
                       <AlertDialogDescription className="text-zinc-400">
-                        Esta ação é **irreversível**. Todos os seus dados, históricos de simulados, provas agendadas e documentos enviados serão excluídos permanentemente de nossos servidores.
+                        Isso removerá todo o seu progresso, simulados e documentos. Esta ação não pode ser desfeita.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                      <AlertDialogCancel className="rounded-xl bg-zinc-800 border-none text-white hover:bg-zinc-700">Não, manter conta</AlertDialogCancel>
+                      <AlertDialogCancel className="rounded-xl bg-zinc-800 border-none text-white">Manter conta</AlertDialogCancel>
                       <AlertDialogAction 
                         onClick={handleDeleteAccount}
                         disabled={isDeleting}
@@ -171,7 +165,7 @@ const SettingsPage = () => {
                 >
                   <div className="flex items-center gap-3">
                     <LogOut size={18} />
-                    <span className="font-bold">Sair do Aplicativo</span>
+                    <span className="font-bold text-sm">Sair do Aplicativo</span>
                   </div>
                   <ChevronRight size={18} />
                 </button>
@@ -181,9 +175,9 @@ const SettingsPage = () => {
         </div>
       </div>
 
-      <footer className="absolute bottom-32 left-0 right-0 text-center">
+      <footer className="mt-10 text-center pb-32">
         <p className="text-[9px] font-bold text-study-medium/50 uppercase tracking-[0.2em]">
-          Estuda AÍ • Versão 1.2.26 • 2026
+          Estuda AÍ • 2026
         </p>
       </footer>
 
