@@ -1,28 +1,53 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bird, ChevronLeft } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === '/';
+  const [isVisible, setIsVisible] = useState(true);
 
-  // Forçamos a volta para a home para garantir que o botão sempre funcione
-  const handleBack = () => {
-    navigate('/');
-  };
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    
+    const handleScroll = () => {
+      // Esconde imediatamente ao detectar movimento
+      setIsVisible(false);
+      
+      // Cancela o timeout anterior
+      clearTimeout(timeout);
+      
+      // Define que voltará a ser visível após 250ms sem movimento
+      timeout = setTimeout(() => {
+        setIsVisible(true);
+      }, 250);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(timeout);
+    };
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <motion.header 
+      initial={{ y: 0 }}
+      animate={{ y: isVisible ? 0 : -100 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+    >
       <div className="container flex h-16 items-center gap-4 px-4 sm:px-8">
         {!isHome && (
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={handleBack}
+            onClick={() => navigate('/')}
             className="rounded-full hover:bg-study-light/20 text-study-dark dark:text-white"
           >
             <ChevronLeft size={24} />
@@ -39,7 +64,7 @@ const Navbar = () => {
           </div>
         </Link>
       </div>
-    </header>
+    </motion.header>
   );
 };
 
