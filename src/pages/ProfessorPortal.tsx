@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { GraduationCap, Upload, FileText, Loader2, ShieldCheck, Settings2 } from 'lucide-react';
+import { GraduationCap, Upload, FileText, Loader2, ShieldCheck, Settings2, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from 'sonner';
@@ -13,12 +14,15 @@ import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
 import ProfessorChat from '@/components/ProfessorChat';
 import { useNavigate } from 'react-router-dom';
+import { cn } from "@/lib/utils";
 
 const ProfessorPortal = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
   const [professorData, setProfessorData] = useState({
     name: '',
     subject_id: '',
@@ -30,9 +34,36 @@ const ProfessorPortal = () => {
     fetchSubjects();
   }, [user]);
 
+  useEffect(() => {
+    if (professorData.subject_id) {
+      fetchDocuments();
+      
+      const channel = supabase
+        .channel('prof-docs-realtime')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'documents',
+          filter: `subject_id=eq.${professorData.subject_id}`
+        }, () => fetchDocuments())
+        .subscribe();
+
+      return () => { supabase.removeChannel(channel); };
+    }
+  }, [professorData.subject_id]);
+
   const fetchSubjects = async () => {
     const { data } = await supabase.from('subjects').select('*').order('name');
     if (data) setSubjects(data);
+  };
+
+  const fetchDocuments = async () => {
+    const { data } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('subject_id', professorData.subject_id)
+      .order('created_at', { ascending: false });
+    if (data) setDocuments(data);
   };
 
   const fetchProfessorData = async () => {
@@ -58,37 +89,59 @@ const ProfessorPortal = () => {
     if (!file) return;
 
     if (!professorData.subject_id) {
-      toast.error("Você precisa vincular uma matéria ao seu perfil nos Ajustes antes de subir arquivos.");
+      toast.error("Vincule uma matéria ao seu perfil nos Ajustes primeiro.");
       navigate('/settings');
       return;
     }
 
-    const toastId = toast.loading("Subindo material para a IA...");
+    setUploading(true);
+    const toastId = toast.loading("Enviando material...");
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${professorData.subject_id}-${Date.now()}.${fileExt}`;
-      const filePath = fileName;
-
+      
       const { error: uploadError } = await supabase.storage
         .from('documents')
-        .upload(filePath, file);
+        .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
       const { error: dbError } = await supabase.from('documents').insert([{
         name: file.name,
-        file_path: filePath,
+        file_path: fileName,
         subject_id: professorData.subject_id,
         user_id: user?.id,
         status: 'ready'
       }]);
 
       if (dbError) throw dbError;
-      toast.success("Documento adicionado à base de conhecimento!", { id: toastId });
+      toast.success("Material adicionado com sucesso!", { id: toastId });
+      fetchDocuments();
     } catch (err: any) {
       toast.error("Erro ao subir arquivo.", { id: toastId });
     } finally {
+      setUploading(false);
       event.target.value = '';
+    }
+  };
+
+  const removeDoc = async (id: string, path: string) => {
+    if (!confirm("Excluir este material permanentemente?")) return;
+    try {
+      await supabase.from('documents').delete().eq('id', id);
+      await supabase.storage.from('documents').remove([path]);
+      toast.success("Material removido.");
+      fetchDocuments();
+    } catch (err) {
+      toast.error("Erro ao remover.");
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'ready': return <CheckCircle2 size={12} className="text-green-500" />;
+      case 'processing': return <Loader2 size={12} className="text-study-primary animate-spin" />;
+      default: return <AlertCircle size={12} className="text-study-medium" />;
     }
   };
 
@@ -101,58 +154,70 @@ const ProfessorPortal = () => {
       <Navbar />
       
       <main className="p-6 space-y-8">
-        {/* Header de Boas Vindas */}
+        {/* Perfil e Boas Vindas */}
         <div className="flex flex-col items-center gap-4 py-8 bg-study-primary/5 rounded-[2.5rem] border border-study-primary/10 relative overflow-hidden shadow-inner">
           <div className="absolute top-0 right-0 p-4 opacity-5"><GraduationCap size={100} /></div>
-          
-          <div className="relative">
-            <Avatar className="h-28 w-28 border-4 border-study-primary/20 shadow-2xl">
-              <AvatarImage src={professorData.avatar_url} className="object-cover" />
-              <AvatarFallback className="bg-study-primary text-white text-3xl font-black">{professorData.name?.substring(0, 2).toUpperCase() || 'P'}</AvatarFallback>
-            </Avatar>
-          </div>
-
-          <div className="text-center z-10 px-4">
-            <h1 className="text-2xl font-black text-study-dark dark:text-white leading-tight">
-              {professorData.name || "Professor"}
-            </h1>
-            <div className="flex flex-col items-center gap-1 mt-2">
-              <Badge className="bg-study-primary text-zinc-900 font-bold px-4 py-1 flex gap-1"><ShieldCheck size={14} /> MODO PROFESSOR</Badge>
-              {currentSubjectName ? (
-                <p className="text-[10px] font-black text-study-primary uppercase tracking-[0.2em] mt-2">Disciplina: {currentSubjectName}</p>
-              ) : (
-                <Button 
-                  variant="link" 
-                  onClick={() => navigate('/settings')}
-                  className="text-[10px] font-bold text-red-500 uppercase p-0 h-auto mt-2 animate-pulse"
-                >
-                  <Settings2 size={10} className="mr-1" /> Configure sua matéria nos Ajustes
-                </Button>
-              )}
-            </div>
+          <Avatar className="h-28 w-28 border-4 border-study-primary/20 shadow-2xl">
+            <AvatarImage src={professorData.avatar_url} className="object-cover" />
+            <AvatarFallback className="bg-study-primary text-white text-3xl font-black">{professorData.name?.substring(0, 2).toUpperCase() || 'P'}</AvatarFallback>
+          </Avatar>
+          <div className="text-center z-10">
+            <h1 className="text-2xl font-black text-study-dark dark:text-white">{professorData.name || "Professor"}</h1>
+            <Badge className="bg-study-primary text-zinc-900 font-bold px-4 py-1 mt-2"><ShieldCheck size={14} className="mr-1" /> MODO PROFESSOR</Badge>
           </div>
         </div>
 
-        {/* Gestão de Arquivos */}
+        {/* Upload de Material */}
         <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
           <CardHeader className="bg-study-primary/5 border-b border-study-primary/10">
             <CardTitle className="text-xs font-black uppercase tracking-widest text-study-primary flex items-center gap-2">
-              <Upload size={18} /> Alimentar Base da IA
+              <Upload size={18} /> Novo Material Didático
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-8">
-            <label className="border-2 border-dashed border-study-primary/30 rounded-[2rem] p-10 flex flex-col items-center justify-center gap-4 bg-study-primary/5 hover:bg-study-primary/10 transition-all cursor-pointer group text-center">
-              <div className="bg-white dark:bg-zinc-800 p-4 rounded-2xl shadow-xl group-hover:scale-110 transition-transform"><FileText className="text-study-primary" size={32} /></div>
-              <div>
-                <span className="text-sm font-black uppercase text-study-dark dark:text-white">Subir PDF Didático</span>
-                <p className="text-[9px] text-study-medium font-bold uppercase tracking-widest mt-1">O material será lido pelo Professor Virtual</p>
-              </div>
-              <input type="file" className="hidden" accept=".pdf" onChange={handleFileUpload} />
+            <label className="border-2 border-dashed border-study-primary/30 rounded-[2rem] p-8 flex flex-col items-center justify-center gap-3 bg-study-primary/5 hover:bg-study-primary/10 transition-all cursor-pointer group text-center">
+              <div className="bg-white dark:bg-zinc-800 p-3 rounded-2xl shadow-lg"><FileText className="text-study-primary" size={28} /></div>
+              <span className="text-xs font-black uppercase text-study-dark dark:text-white">{uploading ? "Processando..." : "Subir PDF de Aula"}</span>
+              <input type="file" className="hidden" accept=".pdf" onChange={handleFileUpload} disabled={uploading} />
             </label>
           </CardContent>
         </Card>
 
-        {/* IA de Validação */}
+        {/* Lista de Materiais */}
+        <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
+          <CardHeader className="border-b border-white/5 bg-zinc-800/20">
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-study-medium">Materiais na Base de Conhecimento</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-48 w-full">
+              {documents.length === 0 ? (
+                <div className="p-10 text-center text-[10px] font-bold uppercase opacity-20">Nenhum arquivo postado</div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {documents.map((doc) => (
+                    <div key={doc.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileText size={18} className="text-study-primary shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-zinc-200 truncate pr-2">{doc.name}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {getStatusIcon(doc.status)}
+                            <span className="text-[8px] font-black uppercase text-study-medium">{doc.status === 'ready' ? 'Ativo' : 'Lendo'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={() => removeDoc(doc.id, doc.file_path)} className="p-2 text-study-medium hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* Chat de Validação */}
         {professorData.subject_id && (
           <ProfessorChat subjectId={professorData.subject_id} />
         )}
