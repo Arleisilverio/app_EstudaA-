@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Settings as SettingsIcon, ShieldAlert, Trash2, ChevronRight, LogOut, ExternalLink, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, ShieldAlert, Trash2, ChevronRight, LogOut, ExternalLink, Loader2, UserPlus, GraduationCap, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -20,11 +22,44 @@ import { showError, showSuccess } from "@/utils/toast";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import FeedbackSection from '@/components/FeedbackSection';
+import { Badge } from "@/components/ui/badge";
 
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, isAdmin, isProfessor, user } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [authorizedEmails, setAuthorizedEmails] = useState<any[]>([]);
+  const [loadingEmails, setLoadingEmails] = useState(false);
+
+  useEffect(() => {
+    if (isAdmin) fetchAuthorizedEmails();
+  }, [isAdmin]);
+
+  const fetchAuthorizedEmails = async () => {
+    setLoadingEmails(true);
+    const { data } = await supabase.from('authorized_professor_emails').select('*').order('created_at', { ascending: false });
+    if (data) setAuthorizedEmails(data);
+    setLoadingEmails(false);
+  };
+
+  const handleAuthorizeEmail = async () => {
+    if (!newEmail.includes('@')) return showError("Email inválido");
+    
+    const { error } = await supabase.from('authorized_professor_emails').insert([{ email: newEmail.trim(), added_by: user?.id }]);
+    if (error) {
+      showError("Email já autorizado ou erro no servidor.");
+    } else {
+      showSuccess("Professor autorizado!");
+      setNewEmail("");
+      fetchAuthorizedEmails();
+    }
+  };
+
+  const handleRemoveAuth = async (email: string) => {
+    const { error } = await supabase.from('authorized_professor_emails').delete().eq('email', email);
+    if (!error) fetchAuthorizedEmails();
+  };
 
   const handleLogout = async () => {
     try {
@@ -65,6 +100,58 @@ const SettingsPage = () => {
         </div>
 
         <div className="space-y-10">
+          {(isAdmin || isProfessor) && (
+            <section className="space-y-3">
+              <h2 className="text-xs font-bold text-study-primary uppercase tracking-widest ml-1">Portal Exclusivo</h2>
+              <Button 
+                onClick={() => navigate('/professor-portal')}
+                className="w-full bg-study-primary/10 hover:bg-study-primary/20 text-study-primary rounded-3xl py-8 h-auto flex items-center justify-between px-6 border border-study-primary/20"
+              >
+                <div className="flex items-center gap-4">
+                  <GraduationCap size={32} />
+                  <div className="text-left">
+                    <span className="font-black text-lg block">Portal do Professor</span>
+                    <span className="text-[10px] uppercase font-bold opacity-70">Gerenciar Matérias e Arquivos</span>
+                  </div>
+                </div>
+                <ChevronRight />
+              </Button>
+            </section>
+          )}
+
+          {isAdmin && (
+            <section className="space-y-3">
+              <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Autorizar Professores</h2>
+              <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Email do professor..." 
+                      value={newEmail}
+                      onChange={e => setNewEmail(e.target.value)}
+                      className="rounded-xl h-12"
+                    />
+                    <Button onClick={handleAuthorizeEmail} className="bg-study-primary h-12 w-12 p-0 rounded-xl">
+                      <UserPlus size={20} />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {authorizedEmails.map(auth => (
+                      <div key={auth.email} className="flex items-center justify-between p-3 bg-study-light/5 rounded-xl border border-study-light/10">
+                        <span className="text-xs font-bold text-study-dark truncate flex-1">{auth.email}</span>
+                        <button onClick={() => handleRemoveAuth(auth.email)} className="text-red-500 p-1 hover:bg-red-50 rounded-lg">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    {authorizedEmails.length === 0 && <p className="text-center py-4 text-[10px] text-study-medium uppercase font-bold">Nenhum email autorizado</p>}
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          )}
+
           <FeedbackSection />
 
           <section className="space-y-3">

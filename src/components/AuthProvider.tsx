@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type UserRole = 'tech_admin' | 'content_admin' | 'student';
+type UserRole = 'admin' | 'professor' | 'student';
 
 type AuthContextType = {
   session: Session | null;
@@ -12,12 +12,9 @@ type AuthContextType = {
   loading: boolean;
   role: UserRole;
   isAdmin: boolean;
+  isProfessor: boolean;
   signOut: () => Promise<void>;
 };
-
-// Listas de e-mails com permissões especiais
-const TECH_ADMIN_EMAILS = ['arlei85@hotmail.com', 'arlei.se.silverio85@gmail.com'];
-const CONTENT_ADMIN_EMAILS = ['arleisilverio41@gmail.com', 'yasmim.dambroski@hotmail.com'];
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
@@ -25,6 +22,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   role: 'student',
   isAdmin: false,
+  isProfessor: false,
   signOut: async () => {},
 });
 
@@ -34,56 +32,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UserRole>('student');
 
-  const determineRole = (email?: string): UserRole => {
-    if (!email) return 'student';
-    if (TECH_ADMIN_EMAILS.includes(email)) return 'tech_admin';
-    if (CONTENT_ADMIN_EMAILS.includes(email)) return 'content_admin';
-    return 'student';
+  const fetchUserRole = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('user_role')
+      .eq('id', userId)
+      .single();
+    
+    if (data) {
+      setRole(data.user_role as UserRole);
+    }
   };
 
   useEffect(() => {
-    const safetyTimeout = setTimeout(() => {
-      if (loading) setLoading(false);
-    }, 5000);
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      setRole(determineRole(currentUser?.email));
+      if (currentUser) fetchUserRole(currentUser.id);
       setLoading(false);
-      clearTimeout(safetyTimeout);
-    }).catch(() => {
-      setLoading(false);
-      clearTimeout(safetyTimeout);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      setRole(determineRole(currentUser?.email));
+      if (currentUser) fetchUserRole(currentUser.id);
+      else setRole('student');
       setLoading(false);
-
-      if (event === 'PASSWORD_RECOVERY') {
-        window.location.href = '/reset-password';
-      }
     });
 
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(safetyTimeout);
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
-  const isAdmin = role === 'tech_admin' || role === 'content_admin';
+  const isAdmin = role === 'admin';
+  const isProfessor = role === 'professor';
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, role, isAdmin, signOut }}>
+    <AuthContext.Provider value={{ session, user, loading, role, isAdmin, isProfessor, signOut }}>
       {children}
     </AuthContext.Provider>
   );
