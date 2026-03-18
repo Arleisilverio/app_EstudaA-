@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ClipboardCheck, Calendar, Clock, Plus, Pencil, Trash2, Loader2, Save } from 'lucide-react';
+import { ClipboardCheck, Calendar, Clock, Plus, Pencil, Trash2, Loader2, Save, BookOpen, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/components/AuthProvider";
@@ -16,6 +17,7 @@ import { showError } from "@/utils/toast";
 import { toast } from "sonner";
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import TimeKeeper from 'react-timekeeper';
 
 const ExamsPage = () => {
   const { isAdmin, isProfessor, user } = useAuth();
@@ -24,13 +26,12 @@ const ExamsPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExam, setEditingExam] = useState<any>(null);
   
-  // Quem pode gerenciar (Admins ou Professores)
   const canManage = isAdmin || isProfessor;
 
   const [formData, setFormData] = useState({
     subject: '',
     date: '',
-    time: '',
+    time: '19:00',
     content: '',
     observations: '',
     status: 'Agendada'
@@ -67,7 +68,7 @@ const ExamsPage = () => {
       setFormData({
         subject: exam.subject,
         date: exam.date,
-        time: exam.time,
+        time: exam.time || '19:00',
         content: exam.content || '',
         observations: exam.observations || '',
         status: exam.status || 'Agendada'
@@ -77,7 +78,7 @@ const ExamsPage = () => {
       setFormData({
         subject: '',
         date: '',
-        time: '',
+        time: '19:00',
         content: '',
         observations: '',
         status: 'Agendada'
@@ -205,39 +206,99 @@ const ExamsPage = () => {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="rounded-3xl max-w-[90vw] sm:max-w-md bg-white dark:bg-zinc-900 border-none shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black">{editingExam ? "Editar Prova" : "Nova Prova"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
+        <DialogContent className="rounded-[2.5rem] max-w-[90vw] sm:max-w-md bg-white dark:bg-zinc-950 border-none shadow-2xl p-0 overflow-hidden">
+          <div className="bg-study-primary p-6 text-zinc-900">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tighter">
+                {editingExam ? "Editar Avaliação" : "Agendar Nova Prova"}
+              </DialogTitle>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Preencha os detalhes para os alunos</p>
+            </DialogHeader>
+          </div>
+
+          <div className="p-6 space-y-5">
             <div className="space-y-2">
-              <Label className="text-[10px] font-bold uppercase ml-1">Matéria *</Label>
-              <Input value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} placeholder="Ex: Direito Processual Civil" className="rounded-xl h-12" />
+              <Label className="text-[10px] font-black uppercase ml-1 text-study-medium flex items-center gap-1.5">
+                <BookOpen size={12} className="text-study-primary" /> Matéria / Disciplina *
+              </Label>
+              <div className="relative">
+                <Input 
+                  value={formData.subject} 
+                  onChange={e => setFormData({...formData, subject: e.target.value})} 
+                  placeholder="Ex: Direito Civil IV" 
+                  className="rounded-2xl h-12 bg-zinc-900/50 border-zinc-800 text-white pl-4 focus-visible:ring-study-primary" 
+                />
+              </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase ml-1">Data *</Label>
-                <Input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="rounded-xl h-12" />
+                <Label className="text-[10px] font-black uppercase ml-1 text-study-medium flex items-center gap-1.5">
+                  <Calendar size={12} className="text-study-primary" /> Data *
+                </Label>
+                <Input 
+                  type="date" 
+                  value={formData.date} 
+                  onChange={e => setFormData({...formData, date: e.target.value})} 
+                  className="rounded-2xl h-12 bg-zinc-900/50 border-zinc-800 text-white focus-visible:ring-study-primary" 
+                />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase ml-1">Horário *</Label>
-                <Input type="time" value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} className="rounded-xl h-12" />
+                <Label className="text-[10px] font-black uppercase ml-1 text-study-medium flex items-center gap-1.5">
+                  <Clock size={12} className="text-study-primary" /> Horário *
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full h-12 rounded-2xl bg-zinc-900/50 border-zinc-800 text-white justify-start font-normal px-4">
+                      {formData.time || "Escolha a hora"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 border-none bg-transparent shadow-2xl" align="start">
+                    <TimeKeeper 
+                      time={formData.time} 
+                      onChange={(newTime) => setFormData({...formData, time: newTime.formatted24})}
+                      switchToMinuteOnHourSelect
+                      closeOnMinuteSelect
+                      coarseMinutes={5}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
+
             <div className="space-y-2">
-              <Label className="text-[10px] font-bold uppercase ml-1">Conteúdo da Avaliação</Label>
-              <Textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="Quais tópicos serão cobrados?" className="rounded-xl min-h-[100px] bg-zinc-800/20" />
+              <Label className="text-[10px] font-black uppercase ml-1 text-study-medium flex items-center gap-1.5">
+                <MessageSquare size={12} className="text-study-primary" /> Conteúdo Cobrado
+              </Label>
+              <Textarea 
+                value={formData.content} 
+                onChange={e => setFormData({...formData, content: e.target.value})} 
+                placeholder="Tópicos da prova..." 
+                className="rounded-2xl min-h-[100px] bg-zinc-900/50 border-zinc-800 text-white focus-visible:ring-study-primary" 
+              />
             </div>
+
             <div className="space-y-2">
-              <Label className="text-[10px] font-bold uppercase ml-1">Observações Importantes</Label>
-              <Input value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} placeholder="Ex: Levar código impresso" className="rounded-xl h-12" />
+              <Label className="text-[10px] font-black uppercase ml-1 text-study-medium flex items-center gap-1.5">
+                <Plus size={12} className="text-study-primary" /> Observações
+              </Label>
+              <Input 
+                value={formData.observations} 
+                onChange={e => setFormData({...formData, observations: e.target.value})} 
+                placeholder="Ex: Permitido consulta ao Vade Mecum" 
+                className="rounded-2xl h-12 bg-zinc-900/50 border-zinc-800 text-white focus-visible:ring-study-primary" 
+              />
             </div>
           </div>
-          <DialogFooter>
-            <Button onClick={handleSubmit} className="w-full bg-study-primary hover:bg-study-dark text-white rounded-xl py-7 font-black text-sm uppercase tracking-widest shadow-lg flex gap-2">
-              <Save size={18} /> Publicar para Alunos
+
+          <div className="p-6 bg-zinc-900/50 border-t border-zinc-800">
+            <Button 
+              onClick={handleSubmit} 
+              className="w-full bg-study-primary hover:bg-study-dark text-zinc-900 rounded-2xl py-7 font-black text-sm uppercase tracking-widest shadow-xl flex gap-2 transition-all active:scale-95"
+            >
+              <Save size={18} /> Publicar no Calendário
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
