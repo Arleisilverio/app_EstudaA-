@@ -205,7 +205,8 @@ const ProfessorPortal = () => {
                       </div>
                       <button 
                         onClick={() => removeDoc(doc.id, doc.file_path)} 
-                        className="p-2 text-study-medium hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all shrink-0"
+                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all shrink-0 flex items-center justify-center"
+                        title="Remover material"
                       >
                         <Trash2 size={16} />
                       </button>

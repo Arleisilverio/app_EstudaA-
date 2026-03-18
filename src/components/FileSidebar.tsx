@@ -193,28 +193,28 @@ const FileSidebar = () => {
                   const Icon = statusInfo.icon;
                   
                   return (
-                    <div key={doc.id} className="group relative flex flex-col gap-2 p-3.5 rounded-2xl bg-study-light/5 dark:bg-zinc-800/30 border border-study-light/10 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 transition-all">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="bg-study-primary/10 p-2 rounded-xl shrink-0">
-                            <FileText size={18} className="text-study-primary" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-study-dark dark:text-zinc-200 truncate pr-1" title={doc.name}>{doc.name}</p>
-                            <div className={cn("flex items-center gap-1 mt-0.5", statusInfo.color)}>
-                              <Icon size={10} className={doc.status === 'processing' ? 'animate-spin' : ''} />
-                              <span className="text-[9px] font-black uppercase tracking-tighter">{statusInfo.label}</span>
-                            </div>
+                    <div key={doc.id} className="relative flex items-center justify-between gap-4 p-3.5 rounded-2xl bg-study-light/5 dark:bg-zinc-800/30 border border-study-light/10 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 transition-all">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="bg-study-primary/10 p-2 rounded-xl shrink-0">
+                          <FileText size={18} className="text-study-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-study-dark dark:text-zinc-200 truncate pr-1" title={doc.name}>{doc.name}</p>
+                          <div className={cn("flex items-center gap-1 mt-0.5", statusInfo.color)}>
+                            <Icon size={10} className={doc.status === 'processing' ? 'animate-spin' : ''} />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">{statusInfo.label}</span>
                           </div>
                         </div>
                       </div>
 
                       {canManage && (
-                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1 border-t border-study-light/10 pt-2">
-                          <button onClick={() => removeDoc(doc.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg" title="Excluir">
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+                        <button 
+                          onClick={() => removeDoc(doc.id)} 
+                          className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all shrink-0 flex items-center justify-center" 
+                          title="Excluir material"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       )}
                     </div>
                   );
