@@ -12,17 +12,21 @@ import { Label } from "@/components/ui/label";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError } from "@/utils/toast";
+import { showError } from "@/utils/toast";
 import { toast } from "sonner";
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const ExamsPage = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isProfessor, user } = useAuth();
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExam, setEditingExam] = useState<any>(null);
+  
+  // Quem pode gerenciar (Admins ou Professores)
+  const canManage = isAdmin || isProfessor;
+
   const [formData, setFormData] = useState({
     subject: '',
     date: '',
@@ -35,7 +39,6 @@ const ExamsPage = () => {
   useEffect(() => {
     fetchExams();
 
-    // REAL-TIME: Ouve novas provas agendadas pelo Agente n8n
     const channel = supabase
       .channel('exams-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, () => {
@@ -101,14 +104,14 @@ const ExamsPage = () => {
     toast.promise(saveFn(), {
       loading: 'Salvando prova...',
       success: () => {
-        return editingExam ? "Prova atualizada!" : "Prova adicionada!";
+        return editingExam ? "Prova atualizada!" : "Prova adicionada ao calendário!";
       },
       error: 'Erro ao salvar dados'
     });
   };
 
   const handleDelete = (id: string) => {
-    if (!confirm("Excluir esta prova?")) return;
+    if (!confirm("Excluir esta prova? Alunos não poderão mais vê-la.")) return;
     
     const deleteFn = async () => {
       const { error } = await supabase.from('exams').delete().eq('id', id);
@@ -138,7 +141,7 @@ const ExamsPage = () => {
             </div>
           </div>
           
-          {isAdmin && (
+          {canManage && (
             <Button 
               onClick={() => handleOpenDialog()}
               className="rounded-full w-12 h-12 bg-study-primary hover:bg-study-dark p-0 shadow-lg"
@@ -151,11 +154,11 @@ const ExamsPage = () => {
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="animate-spin text-study-primary" size={40} /></div>
         ) : exams.length === 0 ? (
-          <div className="text-center py-20 text-study-medium">Nenhuma prova agendada.</div>
+          <div className="text-center py-20 text-study-medium italic">Nenhuma prova agendada no momento.</div>
         ) : (
           <div className="space-y-4">
             {exams.map((exam) => (
-              <Card key={exam.id} className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
+              <Card key={exam.id} className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden group">
                 <CardContent className="p-0">
                   <div className="bg-study-light/20 dark:bg-zinc-800/50 px-6 py-4 flex justify-between items-center border-b border-study-light/30 dark:border-zinc-800">
                     <div className="flex items-center gap-2">
@@ -168,10 +171,10 @@ const ExamsPage = () => {
                       <Badge className="bg-study-primary/10 text-study-primary hover:bg-study-primary/20 border-none rounded-full px-3">
                         {exam.status}
                       </Badge>
-                      {isAdmin && (
-                        <div className="flex gap-1">
-                          <button onClick={() => handleOpenDialog(exam)} className="p-1.5 text-study-medium hover:text-study-primary"><Pencil size={14} /></button>
-                          <button onClick={() => handleDelete(exam.id)} className="p-1.5 text-study-medium hover:text-red-500"><Trash2 size={14} /></button>
+                      {canManage && (
+                        <div className="flex gap-1 ml-2">
+                          <button onClick={() => handleOpenDialog(exam)} className="p-1.5 text-study-medium hover:text-study-primary transition-colors"><Pencil size={14} /></button>
+                          <button onClick={() => handleDelete(exam.id)} className="p-1.5 text-study-medium hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
                         </div>
                       )}
                     </div>
@@ -179,7 +182,7 @@ const ExamsPage = () => {
                   
                   <div className="p-6 space-y-4">
                     <div>
-                      <h3 className="text-lg font-bold text-study-dark dark:text-zinc-100 mb-1">{exam.subject}</h3>
+                      <h3 className="text-lg font-bold text-study-dark dark:text-zinc-100 mb-1 leading-tight">{exam.subject}</h3>
                       <div className="flex items-center gap-2 text-study-medium text-xs font-medium">
                         <Clock size={14} /> {exam.time ? exam.time.substring(0, 5) : ''}
                       </div>
@@ -187,10 +190,10 @@ const ExamsPage = () => {
 
                     <div className="bg-study-light/10 dark:bg-zinc-800/30 rounded-2xl p-4 border border-study-light/20 dark:border-zinc-800">
                       <p className="text-sm text-study-dark dark:text-zinc-300 leading-relaxed">
-                        {exam.content}
+                        {exam.content || "Conteúdo não especificado."}
                       </p>
                       {exam.observations && (
-                        <p className="text-xs text-study-medium mt-2 italic">Obs: {exam.observations}</p>
+                        <p className="text-xs text-study-medium mt-2 italic border-t border-study-light/20 pt-2">Obs: {exam.observations}</p>
                       )}
                     </div>
                   </div>
@@ -202,37 +205,37 @@ const ExamsPage = () => {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="rounded-3xl max-w-[90vw] sm:max-w-md">
+        <DialogContent className="rounded-3xl max-w-[90vw] sm:max-w-md bg-white dark:bg-zinc-900 border-none shadow-2xl">
           <DialogHeader>
-            <DialogTitle>{editingExam ? "Editar Prova" : "Nova Prova"}</DialogTitle>
+            <DialogTitle className="text-xl font-black">{editingExam ? "Editar Prova" : "Nova Prova"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Matéria *</Label>
-              <Input value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} placeholder="Ex: Direito Penal" className="rounded-xl" />
+              <Label className="text-[10px] font-bold uppercase ml-1">Matéria *</Label>
+              <Input value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} placeholder="Ex: Direito Processual Civil" className="rounded-xl h-12" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Data *</Label>
-                <Input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="rounded-xl" />
+                <Label className="text-[10px] font-bold uppercase ml-1">Data *</Label>
+                <Input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="rounded-xl h-12" />
               </div>
               <div className="space-y-2">
-                <Label>Horário *</Label>
-                <Input type="time" value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} className="rounded-xl" />
+                <Label className="text-[10px] font-bold uppercase ml-1">Horário *</Label>
+                <Input type="time" value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} className="rounded-xl h-12" />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Conteúdo</Label>
-              <Textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="O que vai cair na prova?" className="rounded-xl min-h-[100px]" />
+              <Label className="text-[10px] font-bold uppercase ml-1">Conteúdo da Avaliação</Label>
+              <Textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="Quais tópicos serão cobrados?" className="rounded-xl min-h-[100px] bg-zinc-800/20" />
             </div>
             <div className="space-y-2">
-              <Label>Observações</Label>
-              <Input value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} placeholder="Ex: Levar Vade Mecum" className="rounded-xl" />
+              <Label className="text-[10px] font-bold uppercase ml-1">Observações Importantes</Label>
+              <Input value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} placeholder="Ex: Levar código impresso" className="rounded-xl h-12" />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleSubmit} className="w-full bg-study-primary hover:bg-study-dark text-white rounded-xl py-6 font-bold flex gap-2">
-              <Save size={18} /> Salvar Prova
+            <Button onClick={handleSubmit} className="w-full bg-study-primary hover:bg-study-dark text-white rounded-xl py-7 font-black text-sm uppercase tracking-widest shadow-lg flex gap-2">
+              <Save size={18} /> Publicar para Alunos
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -40,8 +40,9 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
   
   if (!session) return <Navigate to="/login" replace />;
 
-  // Se for professor e tentar acessar rotas de aluno, manda pro portal
-  if (role === 'professor' && !['/professor-portal', '/settings', '/support', '/terms'].includes(location.pathname)) {
+  // Se for professor e tentar acessar rotas de aluno, manda pro portal (exceto Provas que agora ele gerencia)
+  const profAllowedPaths = ['/professor-portal', '/settings', '/support', '/terms', '/exams'];
+  if (role === 'professor' && !profAllowedPaths.includes(location.pathname)) {
     return <Navigate to="/professor-portal" replace />;
   }
 
