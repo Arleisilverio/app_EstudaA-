@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Bell, Loader2, User } from 'lucide-react';
+import { Bell, Loader2, User, LogOut } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,9 +9,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import NotificationList from './NotificationList';
 import { useNavigate } from 'react-router-dom';
 import { addDays, format, parseISO, differenceInDays, startOfDay, setYear, isBefore, addYears } from 'date-fns';
+import { toast } from "sonner";
 
 const HomeHeader = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -83,6 +84,16 @@ const HomeHeader = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Até logo!");
+      navigate('/login');
+    } catch (error) {
+      toast.error("Erro ao sair.");
+    }
+  };
+
   return (
     <div className="flex items-center justify-between p-4 sm:p-6 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-study mx-4 mt-6 border border-study-light/10 dark:border-white/5 transition-all duration-500 animate-in fade-in slide-in-from-top-4">
       <div 
@@ -140,6 +151,14 @@ const HomeHeader = () => {
           className="p-2.5 sm:p-3 bg-study-light/10 dark:bg-zinc-800 rounded-xl sm:rounded-2xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 shrink-0"
         >
           <User size={20} />
+        </button>
+
+        <button 
+          onClick={handleLogout}
+          className="p-2.5 sm:p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl sm:rounded-2xl shadow-sm transition-all duration-300 shrink-0"
+          title="Sair"
+        >
+          <LogOut size={20} />
         </button>
       </div>
     </div>
