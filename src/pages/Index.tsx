@@ -5,8 +5,17 @@ import HomeHeader from "@/components/HomeHeader";
 import PromoBanner from "@/components/PromoBanner";
 import SubjectGrid from "@/components/SubjectGrid";
 import BottomNav from "@/components/BottomNav";
+import { useAuth } from '@/components/AuthProvider';
+import { Navigate } from 'react-router-dom';
 
 const Index = () => {
+  const { isProfessor } = useAuth();
+
+  // Se for professor, a "Home" dele deve ser o Portal
+  if (isProfessor) {
+    return <Navigate to="/professor-portal" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative overflow-x-hidden">
       {/* Background Decorative Elements */}
