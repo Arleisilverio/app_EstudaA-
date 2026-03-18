@@ -58,25 +58,13 @@ serve(async (req) => {
     }
 
     // 3. Definir Prompts Otimizados
-    const numDocs = documents?.length || 0;
-    
     let systemPrompt = `Você é o Professor Especialista do Estuda AÍ. 
-    Seu objetivo é auxiliar o aluno com base nos documentos fornecidos.
-    
-    DIRETRIZES:
-    - Se houver muito conteúdo, foque nos conceitos mais importantes para provas.
-    - Seja direto e acadêmico.`;
+    Seu objetivo é auxiliar o aluno com base nos documentos fornecidos.`;
     
     if (action === 'quiz') {
-      const quizTask = numDocs <= 1 
-        ? "Gere um SIMULADO DE EXATAMENTE 10 QUESTÕES de nível INTERMEDIÁRIO PARA AVANÇADO." 
-        : `Gere um SIMULADO ABRANGENTE de nível INTERMEDIÁRIO PARA AVANÇADO. Como há múltiplas fontes (${numDocs}), você deve decidir a quantidade ideal de questões (entre 10 e 20) para cobrir os pontos essenciais.`;
-
       systemPrompt += `
-      TAREFA: ${quizTask} em formato JSON puro.
-      - NÃO gere perguntas de "O que é...". Gere perguntas de "Como se aplica...", "Analise o caso...", ou "Identifique a exceção...".
-      - Dificuldade: As perguntas não devem ser óbvias. Foque em interpretação e análise crítica do material.
-      - Distratores (opções incorretas): Devem ser plausíveis e baseados em erros comuns do conteúdo, desafiando o aluno a pensar.
+      TAREFA: Gere um SIMULADO DESAFIADOR em formato JSON puro.
+      - Dificuldade: Intermediário para Avançado.
       - Não escreva nada além do JSON.
       
       ESTRUTURA JSON:
@@ -84,13 +72,25 @@ serve(async (req) => {
         "questions": [
           {
             "id": 1,
-            "question": "Pergunta desafiadora baseada no texto...",
+            "question": "Pergunta baseada no texto...",
             "options": ["A", "B", "C", "D"],
             "correctIndex": 0,
-            "explanation": "Explicação detalhada da lógica da questão."
+            "explanation": "Explicação detalhada."
           }
         ]
       }`;
+    } else if (action === 'summary') {
+      systemPrompt += `
+      TAREFA: Gere um RESUMO PEDAGÓGICO ESTRUTURADO do material.
+      DIRETRIZES:
+      1. Título impactante.
+      2. Tópicos principais (Bullet points).
+      3. Conceitos-Chave explicados de forma simples.
+      4. Dica de Memorização (Mnemônico se possível).
+      5. Use uma linguagem acadêmica porém acessível.
+      Limite-se aos pontos que realmente caem em provas.`;
+    } else {
+      systemPrompt += `\nResponda de forma direta e acadêmica às dúvidas do aluno.`;
     }
 
     // 4. Chamada OpenAI
@@ -103,7 +103,7 @@ serve(async (req) => {
         model: model,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "system", content: `CONTEXTO DAS FONTES PARA O SIMULADO:\n${contextText || "Use seus conhecimentos gerais avançados sobre o tema."}` },
+          { role: "system", content: `CONTEXTO DAS FONTES:\n${contextText || "Use seus conhecimentos gerais avançados."}` },
           { role: "user", content: query }
         ],
         temperature: 0.5
@@ -122,6 +122,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       text: finalContent,
       isQuiz: action === 'quiz',
+      isSummary: action === 'summary',
       sources: documents?.map(d => d.name) || []
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
