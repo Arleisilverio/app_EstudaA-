@@ -63,7 +63,7 @@ const ProfessorPortal = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `prof-avatar-${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `announcements/${fileName}`;
+      const filePath = fileName; // Simplificando o caminho para evitar erros de pasta
 
       const { error: uploadError } = await supabase.storage
         .from('announcements')
@@ -77,8 +77,9 @@ const ProfessorPortal = () => {
 
       setProfessorData(prev => ({ ...prev, avatar_url: publicUrl }));
       toast.success("Foto carregada! Salve o perfil para confirmar.");
-    } catch (err) {
-      toast.error("Erro no upload da foto.");
+    } catch (err: any) {
+      console.error("Erro upload:", err);
+      toast.error("Erro no upload: " + (err.message || "Verifique sua conexão"));
     } finally {
       setUploadingPhoto(false);
     }
@@ -122,7 +123,7 @@ const ProfessorPortal = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${professorData.subject_id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const filePath = fileName;
 
       const { error: uploadError } = await supabase.storage
         .from('documents')
@@ -140,8 +141,8 @@ const ProfessorPortal = () => {
 
       if (dbError) throw dbError;
       toast.success("Documento adicionado à base de estudos!", { id: toastId });
-    } catch (err) {
-      toast.error("Erro no upload do documento.", { id: toastId });
+    } catch (err: any) {
+      toast.error("Erro no upload: " + (err.message || "Falha ao salvar"), { id: toastId });
     } finally {
       event.target.value = '';
     }
