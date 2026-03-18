@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { GraduationCap, Upload, FileText, CheckCircle, Loader2, Save, User as UserIcon, BookOpen, Camera } from 'lucide-react';
+import { GraduationCap, Upload, FileText, CheckCircle, Loader2, Save, User as UserIcon, BookOpen, Camera, Phone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,9 +48,9 @@ const ProfessorPortal = () => {
     
     if (data) {
       setProfessorData({
-        name: data.name,
-        subject_id: data.subject_id,
-        avatar_url: data.avatar_url,
+        name: data.name || '',
+        subject_id: data.subject_id || '',
+        avatar_url: data.avatar_url || '',
         phone_number: data.phone_number || ''
       });
     }
@@ -87,17 +87,26 @@ const ProfessorPortal = () => {
   };
 
   const handleSaveProfile = async () => {
+    if (!professorData.name || !professorData.subject_id) {
+      return toast.error("Nome e Matéria são obrigatórios.");
+    }
+
     setSaving(true);
     try {
       const { error } = await supabase.from('professors').upsert({
         user_id: user?.id,
-        ...professorData
+        name: professorData.name,
+        subject_id: professorData.subject_id,
+        avatar_url: professorData.avatar_url,
+        phone_number: professorData.phone_number
       }, { onConflict: 'user_id' });
 
       if (error) throw error;
       toast.success("Perfil do professor atualizado!");
-    } catch (err) {
-      toast.error("Erro ao salvar perfil.");
+      fetchProfessorData();
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao salvar perfil: " + (err.message || "Tente novamente"));
     } finally {
       setSaving(false);
     }
@@ -105,8 +114,10 @@ const ProfessorPortal = () => {
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !professorData.subject_id) {
-      if (!professorData.subject_id) toast.error("Selecione sua matéria antes de subir arquivos.");
+    if (!file) return;
+
+    if (!professorData.subject_id) {
+      toast.error("Selecione sua matéria e SALVE seu perfil antes de subir arquivos.");
       return;
     }
 
@@ -134,6 +145,8 @@ const ProfessorPortal = () => {
       toast.success("Documento adicionado à base de estudos!", { id: toastId });
     } catch (err) {
       toast.error("Erro no upload do documento.", { id: toastId });
+    } finally {
+      event.target.value = '';
     }
   };
 
@@ -189,7 +202,7 @@ const ProfessorPortal = () => {
           </CardHeader>
           <CardContent className="space-y-4 pt-4">
             <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase ml-1">Nome de Exibição</Label>
+              <Label className="text-[10px] font-bold uppercase ml-1">Nome de Exibição *</Label>
               <Input 
                 value={professorData.name} 
                 onChange={e => setProfessorData({...professorData, name: e.target.value})}
@@ -197,8 +210,22 @@ const ProfessorPortal = () => {
                 className="rounded-xl h-12"
               />
             </div>
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase ml-1">WhatsApp / Telefone</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-study-medium" size={16} />
+                  <Input 
+                    value={professorData.phone_number} 
+                    onChange={e => setProfessorData({...professorData, phone_number: e.target.value})}
+                    placeholder="(00) 00000-0000"
+                    className="rounded-xl h-12 pl-10"
+                  />
+                </div>
+              </div>
+            </div>
             <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase ml-1">Disciplina que Leciona</Label>
+              <Label className="text-[10px] font-bold uppercase ml-1">Disciplina que Leciona *</Label>
               <Select 
                 value={professorData.subject_id} 
                 onValueChange={v => setProfessorData({...professorData, subject_id: v})}
