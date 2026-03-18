@@ -18,7 +18,6 @@ import Terms from "./pages/Terms";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import Support from "./pages/Support";
-import AdminProfessors from "./pages/AdminProfessors"; // Importado
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,7 +52,6 @@ const AppRoutes = () => (
     <Route path="/exams" element={<ProtectedRoute><Exams /></ProtectedRoute>} />
     <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-    <Route path="/admin/professors" element={<ProtectedRoute><AdminProfessors /></ProtectedRoute>} />
     <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
     <Route path="/terms" element={<Terms />} />
     <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />

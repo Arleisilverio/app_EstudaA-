@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, ShieldAlert, Trash2, ChevronRight, LogOut, ExternalLink, Loader2, Bot } from 'lucide-react';
+import { Settings as SettingsIcon, ShieldAlert, Trash2, ChevronRight, LogOut, ExternalLink, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -23,7 +23,7 @@ import FeedbackSection from '@/components/FeedbackSection';
 
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const { signOut, isAdmin } = useAuth();
+  const { signOut } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleLogout = async () => {
@@ -65,32 +65,6 @@ const SettingsPage = () => {
         </div>
 
         <div className="space-y-10">
-          {/* Gestão de Curadoria (Apenas Admin) */}
-          {isAdmin && (
-            <section className="space-y-3 animate-in fade-in slide-in-from-left-4 duration-500">
-              <h2 className="text-xs font-bold text-study-primary uppercase tracking-widest ml-1">Curadoria Inteligente</h2>
-              <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border-l-4 border-study-primary">
-                <CardContent className="p-0">
-                  <button 
-                    onClick={() => navigate('/admin/professors')}
-                    className="w-full flex items-center justify-between p-5 px-6 hover:bg-study-light/10 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="bg-study-primary/20 p-2.5 rounded-xl">
-                        <Bot size={22} className="text-study-primary" />
-                      </div>
-                      <div className="text-left">
-                        <span className="font-bold text-study-dark dark:text-zinc-200 block text-sm">Gestão de Autores n8n</span>
-                        <span className="text-[10px] text-study-medium font-bold uppercase tracking-tighter">Autorizar Números de WhatsApp</span>
-                      </div>
-                    </div>
-                    <ChevronRight size={18} className="text-study-medium" />
-                  </button>
-                </CardContent>
-              </Card>
-            </section>
-          )}
-
           <FeedbackSection />
 
           <section className="space-y-3">
