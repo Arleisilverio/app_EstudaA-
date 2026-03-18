@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Save, User, Loader2, History, Trash2, Award, Cake, TrendingUp } from 'lucide-react';
+import { Camera, Save, User, Loader2, History, Award, TrendingUp, Settings2, ChevronLeft } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,10 +13,11 @@ import BottomNav from "@/components/BottomNav";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from "sonner";
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 
 const DAYS = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
 const MONTHS = [
@@ -30,6 +31,7 @@ const MONTHS = [
 
 const ProfilePage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -76,15 +78,13 @@ const ProfilePage = () => {
       .from('quiz_history')
       .select('*')
       .eq('user_id', user?.id)
-      .order('created_at', { ascending: true }); // Para o gráfico, queremos cronológico
+      .order('created_at', { ascending: true });
 
     if (data) {
-      setQuizHistory([...data].reverse()); // Lista invertida para o histórico (mais novos primeiro)
-      
-      // Prepara dados para o gráfico
+      setQuizHistory([...data].reverse());
       const formattedData = data.slice(-10).map((q: any) => ({
         data: format(new Date(q.created_at), 'dd/MM'),
-        score: (q.score / q.total_questions) * 10, // Escala de 0 a 10
+        score: (q.score / q.total_questions) * 10,
       }));
       setChartData(formattedData);
     }
@@ -115,16 +115,13 @@ const ProfilePage = () => {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    
     const birthdayString = birthDay && birthMonth ? `2000-${birthMonth}-${birthDay}` : null;
-
     const { error } = await supabase.from('profiles').upsert({ 
       id: user.id, 
       ...profile,
       birthday: birthdayString,
       updated_at: new Date().toISOString() 
     });
-
     if (!error) toast.success("Perfil atualizado!");
     else toast.error("Erro ao salvar perfil");
     setSaving(false);
@@ -135,7 +132,22 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative pb-40">
       <div className="p-6">
-        <h1 className="text-3xl font-bold text-study-dark dark:text-white mb-8">Meu Perfil</h1>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/')} className="p-2 hover:bg-study-light/20 rounded-full text-white">
+              <ChevronLeft size={24} />
+            </button>
+            <h1 className="text-3xl font-bold text-study-dark dark:text-white">Meu Perfil</h1>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate('/settings')}
+            className="bg-study-light/10 text-study-primary rounded-xl"
+          >
+            <Settings2 size={24} />
+          </Button>
+        </div>
         
         <div className="flex flex-col items-center mb-10">
           <div className="relative group">
@@ -164,7 +176,6 @@ const ProfilePage = () => {
         </div>
 
         <div className="space-y-8">
-          {/* Gráfico de Evolução */}
           {chartData.length > 1 && (
             <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
               <CardHeader className="bg-study-primary/10 pb-2">
@@ -176,32 +187,10 @@ const ProfilePage = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" />
-                    <XAxis 
-                      dataKey="data" 
-                      fontSize={10} 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: 'hsl(var(--study-medium))' }}
-                    />
-                    <YAxis 
-                      domain={[0, 10]} 
-                      fontSize={10} 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: 'hsl(var(--study-medium))' }}
-                    />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      labelStyle={{ fontWeight: 'bold' }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="score" 
-                      stroke="hsl(var(--study-primary))" 
-                      strokeWidth={3} 
-                      dot={{ r: 4, fill: 'hsl(var(--study-primary))', strokeWidth: 2, stroke: '#fff' }}
-                      activeDot={{ r: 6 }}
-                    />
+                    <XAxis dataKey="data" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--study-medium))' }} />
+                    <YAxis domain={[0, 10]} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--study-medium))' }} />
+                    <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} labelStyle={{ fontWeight: 'bold' }} />
+                    <Line type="monotone" dataKey="score" stroke="hsl(var(--study-primary))" strokeWidth={3} dot={{ r: 4, fill: 'hsl(var(--study-primary))', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -219,51 +208,22 @@ const ProfilePage = () => {
                 <Label className="text-[10px] font-bold uppercase ml-1">Nome Completo</Label>
                 <Input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="rounded-xl" />
               </div>
-              
               <div className="space-y-2">
                 <Label className="text-[10px] font-bold uppercase ml-1">Dia e Mês do Aniversário</Label>
                 <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Select value={birthDay} onValueChange={setBirthDay}>
-                      <SelectTrigger className="rounded-xl h-11">
-                        <SelectValue placeholder="Dia" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-[2]">
-                    <Select value={birthMonth} onValueChange={setBirthMonth}>
-                      <SelectTrigger className="rounded-xl h-11">
-                        <SelectValue placeholder="Mês" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MONTHS.map(m => <SelectItem key={m.val} value={m.val}>{m.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <div className="flex-1"><Select value={birthDay} onValueChange={setBirthDay}><SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="Dia" /></SelectTrigger><SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="flex-[2]"><Select value={birthMonth} onValueChange={setBirthMonth}><SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="Mês" /></SelectTrigger><SelectContent>{MONTHS.map(m => <SelectItem key={m.val} value={m.val}>{m.label}</SelectItem>)}</SelectContent></Select></div>
                 </div>
               </div>
-
               <div className="space-y-1">
                 <Label className="text-[10px] font-bold uppercase ml-1">Curso</Label>
                 <Input value={profile.course} onChange={e => setProfile({...profile, course: e.target.value})} className="rounded-xl" />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold uppercase ml-1">Período</Label>
-                  <Input value={profile.period} onChange={e => setProfile({...profile, period: e.target.value})} placeholder="Ex: 5º Período" className="rounded-xl" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold uppercase ml-1">Ano Conclusão</Label>
-                  <Input value={profile.completion_year} onChange={e => setProfile({...profile, completion_year: e.target.value})} placeholder="Ex: 2026" className="rounded-xl" />
-                </div>
+                <div className="space-y-1"><Label className="text-[10px] font-bold uppercase ml-1">Período</Label><Input value={profile.period} onChange={e => setProfile({...profile, period: e.target.value})} placeholder="Ex: 5º Período" className="rounded-xl" /></div>
+                <div className="space-y-1"><Label className="text-[10px] font-bold uppercase ml-1">Ano Conclusão</Label><Input value={profile.completion_year} onChange={e => setProfile({...profile, completion_year: e.target.value})} placeholder="Ex: 2026" className="rounded-xl" /></div>
               </div>
-              <Button onClick={handleSave} disabled={saving} className="w-full bg-study-primary rounded-xl mt-2 font-bold py-6">
-                {saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />}
-                Salvar Dados
-              </Button>
+              <Button onClick={handleSave} disabled={saving} className="w-full bg-study-primary rounded-xl mt-2 font-bold py-6">{saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />} Salvar Dados</Button>
             </CardContent>
           </Card>
 
@@ -281,15 +241,11 @@ const ProfilePage = () => {
                       <div className="bg-study-primary/10 p-3 rounded-2xl"><Award className="text-study-primary" size={24} /></div>
                       <div>
                         <h3 className="font-bold text-study-dark dark:text-white text-sm">{quiz.subject_name}</h3>
-                        <p className="text-[10px] text-study-medium font-bold uppercase">
-                          {format(new Date(quiz.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
-                        </p>
+                        <p className="text-[10px] text-study-medium font-bold uppercase">{format(new Date(quiz.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}</p>
                       </div>
                     </div>
                     <div className="text-right flex flex-col items-end gap-2">
-                      <Badge className={cn("rounded-full px-3", (quiz.score / quiz.total_questions) >= 0.7 ? "bg-green-500" : "bg-red-500")}>
-                        {quiz.score}/{quiz.total_questions} Acertos
-                      </Badge>
+                      <Badge className={cn("rounded-full px-3", (quiz.score / quiz.total_questions) >= 0.7 ? "bg-green-500" : "bg-red-500")}>{quiz.score}/{quiz.total_questions} Acertos</Badge>
                     </div>
                   </div>
                 </Card>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Bell, Loader2, Settings } from 'lucide-react';
+import { Bell, Loader2, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,7 +46,6 @@ const HomeHeader = () => {
       const tomorrowStr = format(addDays(today, 1), 'yyyy-MM-dd');
       const alerts: any[] = [];
 
-      // 1. Buscar Provas para Amanhã
       const { data: exams } = await supabase
         .from('exams')
         .select('id, subject, date, time')
@@ -54,55 +53,30 @@ const HomeHeader = () => {
 
       if (exams) {
         exams.forEach(exam => {
-          alerts.push({
-            id: exam.id,
-            subject: exam.subject,
-            date: exam.date,
-            type: 'exam'
-          });
+          alerts.push({ id: exam.id, subject: exam.subject, date: exam.date, type: 'exam' });
         });
       }
 
-      // 2. Buscar Aniversários (Janela de 5 dias: Hoje até +4 dias)
-      const { data: bdays } = await supabase
-        .from('profiles')
-        .select('id, name, birthday, avatar_url');
-
+      const { data: bdays } = await supabase.from('profiles').select('id, name, birthday, avatar_url');
       if (bdays) {
         bdays.forEach(p => {
           if (p.birthday) {
-            // Pegamos o Mês e Dia do BD (formato YYYY-MM-DD)
             const [_, month, day] = p.birthday.split('-');
-            
-            // Criamos a data do aniversário no ano atual
             let bdayThisYear = setYear(new Date(), today.getFullYear());
             bdayThisYear.setMonth(parseInt(month) - 1);
             bdayThisYear.setDate(parseInt(day));
             bdayThisYear = startOfDay(bdayThisYear);
-
-            // Se o aniversário já passou este ano, verificamos o do ano que vem (para a virada de ano)
             if (isBefore(bdayThisYear, today) && differenceInDays(today, bdayThisYear) > 0) {
               bdayThisYear = addYears(bdayThisYear, 1);
             }
-
             const diff = differenceInDays(bdayThisYear, today);
-
-            // Se for hoje ou nos próximos 4 dias
             if (diff >= 0 && diff <= 4) {
-              alerts.push({
-                id: `bday-${p.id}`,
-                subject: p.name || "Estudante",
-                date: bdayThisYear.toISOString(), // Usamos a data calculada
-                type: 'birthday'
-              });
+              alerts.push({ id: `bday-${p.id}`, subject: p.name || "Estudante", date: bdayThisYear.toISOString(), type: 'birthday' });
             }
           }
         });
       }
-
-      // Ordenar por proximidade (mais próximos primeiro)
       alerts.sort((a, b) => differenceInDays(parseISO(a.date), today) - differenceInDays(parseISO(b.date), today));
-
       setNotifications(alerts);
     } catch (err) {
       console.error("Erro nas notificações:", err);
@@ -111,8 +85,11 @@ const HomeHeader = () => {
 
   return (
     <div className="flex items-center justify-between p-4 sm:p-6 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-study mx-4 mt-6 border border-study-light/10 dark:border-white/5 transition-all duration-500 animate-in fade-in slide-in-from-top-4">
-      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-        <div className="relative group shrink-0">
+      <div 
+        onClick={() => navigate('/profile')}
+        className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 cursor-pointer group"
+      >
+        <div className="relative shrink-0">
           <div className="p-0.5 rounded-full bg-gradient-to-tr from-study-primary to-blue-300 dark:to-blue-600 shadow-md">
             <Avatar className="h-12 w-12 sm:h-16 sm:w-16 border-2 sm:border-4 border-white dark:border-zinc-900 shadow-sm transition-transform duration-300 group-hover:scale-105">
               {loading ? (
@@ -159,10 +136,10 @@ const HomeHeader = () => {
         </Popover>
 
         <button 
-          onClick={() => navigate('/settings')}
+          onClick={() => navigate('/profile')}
           className="p-2.5 sm:p-3 bg-study-light/10 dark:bg-zinc-800 rounded-xl sm:rounded-2xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 shrink-0"
         >
-          <Settings size={20} />
+          <User size={20} />
         </button>
       </div>
     </div>
