@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, ShieldAlert, Trash2, ChevronRight, LogOut, ExternalLink, Loader2, UserPlus, GraduationCap, X } from 'lucide-react';
+import { Settings as SettingsIcon, ShieldAlert, Trash2, ChevronRight, LogOut, ExternalLink, Loader2, UserPlus, GraduationCap, X, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ const ADMIN_EMAILS = ['arlei85@hotmail.com', 'arlei.se.silverio85@gmail.com'];
 
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const { signOut, isAdmin: authIsAdmin, isProfessor, user } = useAuth();
+  const { signOut, isAdmin: authIsAdmin, isProfessor, user, role } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [authorizedEmails, setAuthorizedEmails] = useState<any[]>([]);
@@ -65,7 +65,7 @@ const SettingsPage = () => {
       .insert([{ email: newEmail.trim().toLowerCase(), added_by: user?.id }]);
     
     if (error) {
-      showError("Este e-mail já está na lista ou ocorreu um erro.");
+      showError("Erro ao autorizar. Talvez o e-mail já esteja na lista.");
     } else {
       showSuccess("Professor autorizado com sucesso!");
       setNewEmail("");
@@ -113,13 +113,30 @@ const SettingsPage = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative pb-40">
       <div className="p-6">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="bg-study-primary/10 p-3 rounded-2xl">
-            <SettingsIcon className="text-study-primary" size={28} />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="bg-study-primary/10 p-3 rounded-2xl">
+              <SettingsIcon className="text-study-primary" size={28} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-study-dark dark:text-white">Ajustes</h1>
+              <p className="text-study-medium text-sm font-medium">Configurações e Gestão</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-study-dark dark:text-white">Ajustes</h1>
-            <p className="text-study-medium text-sm font-medium">Configurações e Gestão</p>
+
+          {/* Badge de Nível de Acesso */}
+          <div className="flex flex-col items-end gap-1">
+             {isAdmin ? (
+               <Badge className="bg-study-primary text-zinc-900 border-none font-black flex gap-1 animate-pulse">
+                 <ShieldCheck size={12} /> ADMIN
+               </Badge>
+             ) : isProfessor ? (
+               <Badge className="bg-blue-500 text-white border-none font-black flex gap-1">
+                 <GraduationCap size={12} /> PROFESSOR
+               </Badge>
+             ) : (
+               <Badge variant="outline" className="text-study-medium border-study-light/30">ESTUDANTE</Badge>
+             )}
           </div>
         </div>
 
@@ -149,7 +166,7 @@ const SettingsPage = () => {
             <section className="space-y-3">
               <div className="flex items-center justify-between ml-1">
                 <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest">Autorizar Professores</h2>
-                <Badge variant="outline" className="text-[9px] border-study-primary text-study-primary">ADMIN</Badge>
+                <Badge variant="outline" className="text-[9px] border-study-primary text-study-primary">CONTROLE DE ACESSO</Badge>
               </div>
               <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
                 <CardContent className="pt-6 space-y-4">
