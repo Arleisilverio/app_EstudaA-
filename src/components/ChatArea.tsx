@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, GraduationCap, Loader2, Info, Zap, X, BookOpen, Menu } from 'lucide-react';
+import { Send, Sparkles, GraduationCap, Loader2, Info, Zap, X, BookOpen, Menu, CheckSquare, Square, FileText } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,12 +11,20 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from '@/integrations/supabase/client';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import QuizComponent from './QuizComponent';
 import { useAuth } from '@/components/AuthProvider';
+import { cn } from "@/lib/utils";
 
 const ChatArea = () => {
   const { subjectId } = useParams();
@@ -25,6 +33,10 @@ const ChatArea = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<null | { text: string; sources: string[]; isQuiz?: boolean; isSummary?: boolean }>(null);
   const [currentQuiz, setCurrentQuiz] = useState<any[] | null>(null);
+  const [availableDocs, setAvailableDocs] = useState<any[]>([]);
+  const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  const [showFileSelector, setShowFileSelector] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'quiz' | 'summary' | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +44,29 @@ const ChatArea = () => {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [response, isLoading, currentQuiz]);
+
+  useEffect(() => {
+    if (subjectId) fetchDocuments();
+  }, [subjectId]);
+
+  const fetchDocuments = async () => {
+    const { data } = await supabase
+      .from('documents')
+      .select('id, name')
+      .eq('subject_id', subjectId)
+      .eq('status', 'ready');
+    if (data) {
+      setAvailableDocs(data);
+      // Seleciona todos por padrão
+      setSelectedDocs(data.map(d => d.id));
+    }
+  };
+
+  const toggleDoc = (id: string) => {
+    setSelectedDocs(prev => 
+      prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
+    );
+  };
 
   const checkDailyLimit = async () => {
     const today = new Date().toISOString().split('T')[0];
@@ -44,6 +79,15 @@ const ChatArea = () => {
 
     if (error) return true;
     return (count || 0) < 1;
+  };
+
+  const startActionWithFiles = (type: 'quiz' | 'summary') => {
+    if (availableDocs.length === 0) {
+      toast.error("Nenhum material disponível para esta matéria ainda.");
+      return;
+    }
+    setPendingAction(type);
+    setShowFileSelector(true);
   };
 
   const handleAction = async (actionType: 'chat' | 'quiz' | 'summary', customQuery?: string) => {
@@ -61,13 +105,15 @@ const ChatArea = () => {
     setIsLoading(true);
     setResponse(null);
     if (actionType === 'quiz') setCurrentQuiz(null);
+    setShowFileSelector(false);
 
     try {
       const { data, error } = await supabase.functions.invoke('chat-with-gemini', {
         body: { 
           subjectId, 
           query: textToSearch, 
-          action: actionType 
+          action: actionType,
+          documentIds: actionType === 'chat' ? [] : selectedDocs
         }
       });
 
@@ -89,6 +135,7 @@ const ChatArea = () => {
       toast.error(`Erro: ${err.message}`);
     } finally {
       setIsLoading(false);
+      setPendingAction(null);
     }
   };
 
@@ -118,7 +165,7 @@ const ChatArea = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 rounded-2xl bg-white dark:bg-zinc-900 border-study-light/20 shadow-2xl p-2">
               <DropdownMenuItem 
-                onClick={() => handleAction('quiz', "Gere um simulado sobre a matéria.")}
+                onClick={() => startActionWithFiles('quiz')}
                 className="rounded-xl flex items-center gap-3 p-3 cursor-pointer hover:bg-study-primary/10"
               >
                 <div className="bg-study-primary p-2 rounded-lg text-white">
@@ -126,11 +173,11 @@ const ChatArea = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="font-bold text-sm">Gerar Simulado</span>
-                  <span className="text-[10px] text-study-medium font-bold uppercase">Teste seu conhecimento</span>
+                  <span className="text-[10px] text-study-medium font-bold uppercase">Escolha os arquivos</span>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={() => handleAction('summary', "Gere um resumo estruturado da matéria.")}
+                onClick={() => startActionWithFiles('summary')}
                 className="rounded-xl flex items-center gap-3 p-3 cursor-pointer mt-1 hover:bg-study-primary/10"
               >
                 <div className="bg-blue-500 p-2 rounded-lg text-white">
@@ -138,7 +185,7 @@ const ChatArea = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="font-bold text-sm">Gerar Resumo</span>
-                  <span className="text-[10px] text-study-medium font-bold uppercase">Pontos mais importantes</span>
+                  <span className="text-[10px] text-study-medium font-bold uppercase">Escolha os arquivos</span>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -222,6 +269,50 @@ const ChatArea = () => {
         
         <div ref={bottomRef} className="h-4" />
       </div>
+
+      <Dialog open={showFileSelector} onOpenChange={setShowFileSelector}>
+        <DialogContent className="rounded-[2.5rem] max-w-[90vw] sm:max-w-md bg-white dark:bg-zinc-900 border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-study-dark dark:text-white">
+              {pendingAction === 'quiz' ? 'Gerar Simulado' : 'Gerar Resumo'}
+            </DialogTitle>
+            <p className="text-xs text-study-medium font-bold uppercase tracking-widest">Selecione os materiais de base</p>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+            {availableDocs.map((doc) => (
+              <button
+                key={doc.id}
+                onClick={() => toggleDoc(doc.id)}
+                className={cn(
+                  "w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all",
+                  selectedDocs.includes(doc.id) 
+                    ? "border-study-primary bg-study-primary/5" 
+                    : "border-study-light/20 bg-transparent opacity-60"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-xl", selectedDocs.includes(doc.id) ? "bg-study-primary text-white" : "bg-study-light/20 text-study-medium")}>
+                    <FileText size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-study-dark dark:text-zinc-200 text-left truncate max-w-[200px]">{doc.name}</span>
+                </div>
+                {selectedDocs.includes(doc.id) ? <CheckSquare className="text-study-primary" size={20} /> : <Square className="text-study-medium" size={20} />}
+              </button>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button 
+              onClick={() => handleAction(pendingAction!, pendingAction === 'quiz' ? "Gere um simulado sobre os arquivos selecionados." : "Gere um resumo estruturado dos arquivos selecionados.")}
+              disabled={selectedDocs.length === 0}
+              className="w-full bg-study-primary text-white rounded-xl py-6 font-bold shadow-lg h-auto"
+            >
+              Começar {pendingAction === 'quiz' ? 'Simulado' : 'Resumo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {!currentQuiz && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent z-40">

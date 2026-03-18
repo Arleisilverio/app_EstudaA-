@@ -16,7 +16,7 @@ serve(async (req) => {
   console.log(`[${functionName}] Recebendo nova requisição`);
 
   try {
-    const { subjectId, query, action } = await req.json()
+    const { subjectId, query, action, documentIds } = await req.json()
     
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -31,11 +31,17 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
 
-    // 1. Buscar metadados dos documentos
-    const { data: documents, error: docsError } = await supabase
+    // 1. Buscar metadados dos documentos (filtrando por IDs se fornecidos)
+    let queryBuilder = supabase
       .from('documents')
-      .select('name, file_path')
+      .select('id, name, file_path')
       .eq('subject_id', subjectId);
+
+    if (documentIds && documentIds.length > 0) {
+      queryBuilder = queryBuilder.in('id', documentIds);
+    }
+
+    const { data: documents, error: docsError } = await queryBuilder;
 
     if (docsError) throw docsError;
 
