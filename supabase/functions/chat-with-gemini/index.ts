@@ -65,13 +65,13 @@ serve(async (req) => {
 
     // 3. Definir Prompts Otimizados
     let systemPrompt = `Você é o Professor Especialista do Estuda AÍ. 
-    Seu objetivo é auxiliar o aluno com base nos documentos fornecidos.`;
+    Seu objetivo é auxiliar o aluno COM BASE EXCLUSIVA nos documentos fornecidos no contexto.
+    IMPORTANTE: Sempre que responder, utilize as informações das fontes e mencione-as se necessário.`;
     
     if (action === 'quiz') {
       systemPrompt += `
       TAREFA: Gere um SIMULADO DESAFIADOR em formato JSON puro.
-      - Dificuldade: Intermediário para Avançado.
-      - Não escreva nada além do JSON.
+      - Baseie as perguntas estritamente no conteúdo dos arquivos fornecidos.
       
       ESTRUTURA JSON:
       {
@@ -81,22 +81,16 @@ serve(async (req) => {
             "question": "Pergunta baseada no texto...",
             "options": ["A", "B", "C", "D"],
             "correctIndex": 0,
-            "explanation": "Explicação detalhada."
+            "explanation": "Explicação detalhada citando a fonte."
           }
         ]
       }`;
     } else if (action === 'summary') {
       systemPrompt += `
-      TAREFA: Gere um RESUMO PEDAGÓGICO ESTRUTURADO do material.
-      DIRETRIZES:
-      1. Título impactante.
-      2. Tópicos principais (Bullet points).
-      3. Conceitos-Chave explicados de forma simples.
-      4. Dica de Memorização (Mnemônico se possível).
-      5. Use uma linguagem acadêmica porém acessível.
-      Limite-se aos pontos que realmente caem em provas.`;
+      TAREFA: Gere um RESUMO PEDAGÓGICO ESTRUTURADO.
+      Mencione quais documentos foram resumidos no início ou fim do texto.`;
     } else {
-      systemPrompt += `\nResponda de forma direta e acadêmica às dúvidas do aluno.`;
+      systemPrompt += `\nResponda de forma direta e acadêmica. Se a informação não estiver nos documentos, informe que não encontrou nos arquivos de aula mas responda com base em conhecimentos gerais (avisando que é conhecimento extra).`;
     }
 
     // 4. Chamada OpenAI
@@ -109,10 +103,10 @@ serve(async (req) => {
         model: model,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "system", content: `CONTEXTO DAS FONTES:\n${contextText || "Use seus conhecimentos gerais avançados."}` },
+          { role: "system", content: `CONTEXTO DAS FONTES DISPONÍVEIS:\n${contextText || "Nenhum arquivo enviado ainda. Use conhecimentos gerais."}` },
           { role: "user", content: query }
         ],
-        temperature: 0.5
+        temperature: 0.4
       })
     })
 

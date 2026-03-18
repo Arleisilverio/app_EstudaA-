@@ -77,7 +77,6 @@ const ChatArea = () => {
     if (!textToSearch.trim() && actionType === 'chat') return;
 
     if (actionType !== 'quiz') {
-      // Adiciona a pergunta do usuário ao chat imediatamente
       setMessages(prev => [...prev, { role: 'user', text: textToSearch }]);
     }
 
@@ -191,13 +190,19 @@ const ChatArea = () => {
                   ))}
                 </div>
                 
-                {msg.sources && msg.sources.length > 0 && (
-                  <div className="mt-4 pt-3 border-t border-study-light/10 flex flex-wrap gap-1.5">
-                    {msg.sources.map((s, i) => (
-                      <span key={i} className="text-[9px] font-bold uppercase bg-study-light/20 dark:bg-zinc-800 px-2 py-0.5 rounded-full text-study-medium">
-                        {s}
-                      </span>
-                    ))}
+                {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-study-light/20 flex flex-col gap-2">
+                    <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-study-medium tracking-tighter">
+                      <FileText size={12} className="text-study-primary" />
+                      Extraído de:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {msg.sources.map((s, i) => (
+                        <span key={i} className="text-[9px] font-bold uppercase bg-study-light/20 dark:bg-zinc-800 px-2.5 py-1 rounded-lg text-study-medium border border-study-light/10">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
