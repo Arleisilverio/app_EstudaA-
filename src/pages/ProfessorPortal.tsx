@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { GraduationCap, Upload, FileText, CheckCircle, Loader2, Save, User as UserIcon, BookOpen, Camera, Phone } from 'lucide-react';
+import { GraduationCap, Upload, FileText, CheckCircle, Loader2, Save, User as UserIcon, BookOpen, Camera } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,7 @@ const ProfessorPortal = () => {
   const [professorData, setProfessorData] = useState({
     name: '',
     subject_id: '',
-    avatar_url: '',
-    phone_number: ''
+    avatar_url: ''
   });
 
   useEffect(() => {
@@ -50,8 +49,7 @@ const ProfessorPortal = () => {
       setProfessorData({
         name: data.name || '',
         subject_id: data.subject_id || '',
-        avatar_url: data.avatar_url || '',
-        phone_number: data.phone_number || ''
+        avatar_url: data.avatar_url || ''
       });
     }
     setLoading(false);
@@ -97,8 +95,7 @@ const ProfessorPortal = () => {
         user_id: user?.id,
         name: professorData.name,
         subject_id: professorData.subject_id,
-        avatar_url: professorData.avatar_url,
-        phone_number: professorData.phone_number
+        avatar_url: professorData.avatar_url
       }, { onConflict: 'user_id' });
 
       if (error) throw error;
@@ -209,20 +206,6 @@ const ProfessorPortal = () => {
                 placeholder="Ex: Prof. Arlei"
                 className="rounded-xl h-12"
               />
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase ml-1">WhatsApp / Telefone</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-study-medium" size={16} />
-                  <Input 
-                    value={professorData.phone_number} 
-                    onChange={e => setProfessorData({...professorData, phone_number: e.target.value})}
-                    placeholder="(00) 00000-0000"
-                    className="rounded-xl h-12 pl-10"
-                  />
-                </div>
-              </div>
             </div>
             <div className="space-y-1">
               <Label className="text-[10px] font-bold uppercase ml-1">Disciplina que Leciona *</Label>
