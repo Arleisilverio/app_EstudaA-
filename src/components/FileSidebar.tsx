@@ -19,12 +19,15 @@ interface Document {
 }
 
 const FileSidebar = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isProfessor, user } = useAuth();
   const { subjectId } = useParams();
   const [isUploading, setIsUploading] = useState(false);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [subjectName, setSubjectName] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // Pode gerenciar se for admin ou professor
+  const canManage = isAdmin || isProfessor;
 
   useEffect(() => {
     if (subjectId) {
@@ -75,8 +78,8 @@ const FileSidebar = () => {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    if (!isAdmin) {
-      toast.error("Acesso restrito apenas para administradores.");
+    if (!canManage) {
+      toast.error("Acesso restrito apenas para professores e administradores.");
       return;
     }
 
@@ -92,7 +95,6 @@ const FileSidebar = () => {
 
       if (uploadError) throw uploadError;
 
-      // Inicia como 'ready' pois o upload é manual e já está no storage
       const { error: dbError } = await supabase
         .from('documents')
         .insert([{
@@ -151,7 +153,7 @@ const FileSidebar = () => {
         <p className="text-[10px] text-study-medium font-bold uppercase tracking-widest">Base de Conhecimento da IA</p>
       </div>
 
-      {isAdmin && (
+      {canManage && (
         <Card className="border-none shadow-study bg-white dark:bg-zinc-900 overflow-hidden rounded-[2rem]">
           <CardHeader className="bg-study-light/30 dark:bg-zinc-800/50">
             <CardTitle className="text-base flex items-center gap-2 text-study-dark dark:text-zinc-100">
@@ -208,7 +210,7 @@ const FileSidebar = () => {
                         </div>
                       </div>
 
-                      {isAdmin && (
+                      {canManage && (
                         <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1 border-t border-study-light/10 pt-2">
                           <button onClick={() => removeDoc(doc.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg" title="Excluir">
                             <Trash2 size={12} />
