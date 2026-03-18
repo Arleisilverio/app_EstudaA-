@@ -38,7 +38,6 @@ const ProfessorPortal = () => {
     if (professorData.subject_id) {
       fetchDocuments();
       
-      // Escuta mudanças nos documentos da matéria vinculada
       const channel = supabase
         .channel('prof-docs-realtime')
         .on('postgres_changes', { 
@@ -153,7 +152,6 @@ const ProfessorPortal = () => {
       <Navbar />
       
       <main className="p-4 sm:p-6 space-y-8">
-        {/* Perfil e Boas Vindas */}
         <div className="flex flex-col items-center gap-4 py-8 bg-study-primary/5 rounded-[2rem] sm:rounded-[2.5rem] border border-study-primary/10 relative overflow-hidden shadow-inner">
           <div className="absolute top-0 right-0 p-4 opacity-5"><GraduationCap size={100} /></div>
           <Avatar className="h-24 w-24 sm:h-28 sm:w-28 border-4 border-study-primary/20 shadow-2xl">
@@ -166,7 +164,6 @@ const ProfessorPortal = () => {
           </div>
         </div>
 
-        {/* Upload de Material */}
         <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
           <CardHeader className="bg-study-primary/5 border-b border-study-primary/10 p-4 sm:p-6">
             <CardTitle className="text-xs font-black uppercase tracking-widest text-study-primary flex items-center gap-2">
@@ -184,7 +181,6 @@ const ProfessorPortal = () => {
           </CardContent>
         </Card>
 
-        {/* Lista de Materiais */}
         <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
           <CardHeader className="border-b border-white/5 bg-zinc-800/20 p-4 sm:p-6">
             <CardTitle className="text-[10px] font-black uppercase tracking-widest text-study-medium">Materiais na Base de Conhecimento</CardTitle>
@@ -196,11 +192,11 @@ const ProfessorPortal = () => {
               ) : (
                 <div className="divide-y divide-white/5">
                   {documents.map((doc) => (
-                    <div key={doc.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors gap-3">
+                    <div key={doc.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors gap-4">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <FileText size={18} className="text-study-primary shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-zinc-200 truncate">{doc.name}</p>
+                          <p className="text-xs font-bold text-zinc-200 truncate pr-2" title={doc.name}>{doc.name}</p>
                           <div className="flex items-center gap-1 mt-0.5">
                             {getStatusIcon(doc.status)}
                             <span className="text-[8px] font-black uppercase text-study-medium truncate">{doc.status === 'ready' ? 'Ativo' : 'Lendo'}</span>
@@ -221,7 +217,6 @@ const ProfessorPortal = () => {
           </CardContent>
         </Card>
 
-        {/* Chat de Validação */}
         {professorData.subject_id ? (
           <div className="px-1">
             <ProfessorChat subjectId={professorData.subject_id} />

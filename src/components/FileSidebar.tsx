@@ -26,7 +26,6 @@ const FileSidebar = () => {
   const [subjectName, setSubjectName] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Pode gerenciar se for admin ou professor
   const canManage = isAdmin || isProfessor;
 
   useEffect(() => {
@@ -195,13 +194,13 @@ const FileSidebar = () => {
                   
                   return (
                     <div key={doc.id} className="group relative flex flex-col gap-2 p-3.5 rounded-2xl bg-study-light/5 dark:bg-zinc-800/30 border border-study-light/10 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 transition-all">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="bg-study-primary/10 p-2 rounded-xl shrink-0">
                             <FileText size={18} className="text-study-primary" />
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-study-dark dark:text-zinc-200 truncate">{doc.name}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-study-dark dark:text-zinc-200 truncate pr-1" title={doc.name}>{doc.name}</p>
                             <div className={cn("flex items-center gap-1 mt-0.5", statusInfo.color)}>
                               <Icon size={10} className={doc.status === 'processing' ? 'animate-spin' : ''} />
                               <span className="text-[9px] font-black uppercase tracking-tighter">{statusInfo.label}</span>
