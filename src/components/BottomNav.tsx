@@ -46,24 +46,26 @@ const BottomNav = () => {
     studentItems.push({ label: 'Portal', icon: GraduationCap, path: '/professor-portal' });
   }
 
-  const items = (isProfessor && !isAdmin) ? profItems : studentItems;
+  const isProfPill = isProfessor && !isAdmin;
+  const items = isProfPill ? profItems : studentItems;
 
   return (
     <motion.div 
       initial={{ y: 0, opacity: 1 }}
       animate={{ 
-        y: isVisible ? 0 : 100,
+        y: isVisible ? 0 : 120,
         opacity: isVisible ? 1 : 0 
       }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
       className={cn(
-        "fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all",
-        (isProfessor && !isAdmin) ? "w-[240px] sm:w-[280px]" : "left-2 sm:left-4 right-2 sm:right-4 translate-x-0"
+        "fixed bottom-4 sm:bottom-6 left-0 right-0 z-50 flex justify-center px-4 transition-all pointer-events-none"
       )}
     >
       <div className={cn(
-        "h-14 sm:h-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg shadow-2xl flex items-center justify-around px-2 border border-study-light/20 dark:border-white/10",
-        (isProfessor && !isAdmin) ? "rounded-full sm:rounded-[2rem]" : "rounded-[1.2rem] sm:rounded-[2rem]"
+        "h-14 sm:h-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg shadow-2xl flex items-center justify-around border border-study-light/20 dark:border-white/10 pointer-events-auto",
+        isProfPill 
+          ? "w-[240px] sm:w-[280px] rounded-full sm:rounded-[2.5rem] px-4" 
+          : "w-full max-w-md sm:max-w-lg rounded-[1.2rem] sm:rounded-[2.5rem] px-2"
       )}>
         {items.map((item) => {
           const isActive = location.pathname === item.path;
@@ -72,14 +74,16 @@ const BottomNav = () => {
               key={item.label}
               to={item.path}
               className={cn(
-                "flex flex-col items-center gap-0.5 sm:gap-1 transition-all duration-300 px-0.5",
+                "flex flex-col items-center gap-0.5 sm:gap-1 transition-all duration-300 flex-1 min-w-0",
                 isActive 
                   ? "text-study-primary scale-105 sm:scale-110" 
                   : "text-gray-400 dark:text-zinc-500 hover:text-study-medium"
               )}
             >
               <item.icon size={isActive ? 18 : 16} className="sm:size-[24px]" strokeWidth={isActive ? 2.5 : 2} />
-              <span className="text-[7px] sm:text-[9px] font-bold uppercase tracking-tight sm:tracking-wider text-center">{item.label}</span>
+              <span className="text-[7px] sm:text-[9px] font-bold uppercase tracking-tight sm:tracking-wider text-center truncate w-full">
+                {item.label}
+              </span>
               {isActive && <div className="h-0.5 sm:h-1 w-4 sm:w-6 bg-study-primary rounded-full mt-0.5 animate-in fade-in zoom-in duration-300" />}
             </Link>
           );
