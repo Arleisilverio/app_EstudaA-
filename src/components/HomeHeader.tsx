@@ -103,51 +103,50 @@ const HomeHeader = () => {
   };
 
   return (
-    <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-study mx-4 mt-6 border border-study-light/10 dark:border-white/5 transition-all duration-500 animate-in fade-in slide-in-from-top-4">
+    <div className="flex items-center justify-between p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-[1.5rem] sm:rounded-[2rem] shadow-study mx-3 sm:mx-4 mt-4 sm:mt-6 border border-study-light/10 dark:border-white/5 transition-all">
       {/* Lado Esquerdo: Info do Usuário */}
       <div 
         onClick={() => navigate('/profile')}
-        className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer group"
+        className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 cursor-pointer group"
       >
         <div className="relative shrink-0">
           <div className="p-0.5 rounded-full bg-gradient-to-tr from-study-primary to-blue-300 dark:to-blue-600 shadow-md">
-            <Avatar className="h-12 w-12 border-2 border-white dark:border-zinc-900 shadow-sm transition-transform duration-300 group-hover:scale-105">
+            <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-white dark:border-zinc-900 shadow-sm transition-transform duration-300 group-hover:scale-105">
               {loading ? (
                 <div className="flex items-center justify-center w-full h-full bg-study-light/20">
-                  <Loader2 className="animate-spin text-study-primary" size={16} />
+                  <Loader2 className="animate-spin text-study-primary" size={14} />
                 </div>
               ) : (
                 <>
                   <AvatarImage src={profile?.avatar_url} className="object-cover" />
-                  <AvatarFallback className="bg-study-primary text-white text-lg font-bold">
+                  <AvatarFallback className="bg-study-primary text-white text-base sm:text-lg font-bold">
                     {profile?.name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </>
               )}
             </Avatar>
           </div>
-          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full shadow-sm" />
+          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full shadow-sm" />
         </div>
         
-        <div className="min-w-0">
-          <h2 className="text-base font-black text-study-dark dark:text-white leading-tight tracking-tight truncate">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm sm:text-base font-black text-study-dark dark:text-white leading-tight tracking-tight truncate">
             Olá, {profile?.name?.split(' ')[0] || "Estudante"}!
           </h2>
-          <p className="text-[9px] text-study-medium dark:text-zinc-400 font-bold mt-0.5 uppercase tracking-wider truncate">
+          <p className="text-[8px] sm:text-[9px] text-study-medium dark:text-zinc-400 font-bold mt-0.5 uppercase tracking-wider truncate">
             {profile?.course ? `${profile.period || ''} • ${profile.course}` : user?.email}
           </p>
         </div>
       </div>
       
       {/* Lado Direito: Ações Compactadas */}
-      <div className="flex items-center gap-2 ml-2">
-        {/* Notificações (Sino permanece visível) */}
+      <div className="flex items-center gap-1.5 sm:gap-2 ml-1 sm:ml-2">
         <Popover>
           <PopoverTrigger asChild>
-            <button className="relative p-2.5 bg-study-light/10 dark:bg-zinc-800 rounded-xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 group shrink-0">
-              <Bell size={18} />
+            <button className="relative p-2 sm:p-2.5 bg-study-light/10 dark:bg-zinc-800 rounded-xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all group shrink-0">
+              <Bell size={16} className="sm:size-[18px]" />
               {notifications.length > 0 && (
-                <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 border-2 border-white dark:border-zinc-900 rounded-full animate-pulse" />
+                <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-1.5 h-1.5 bg-red-500 border-2 border-white dark:border-zinc-900 rounded-full animate-pulse" />
               )}
             </button>
           </PopoverTrigger>
@@ -156,11 +155,10 @@ const HomeHeader = () => {
           </PopoverContent>
         </Popover>
 
-        {/* Dropdown de Configurações (Perfil e Sair) */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="p-2.5 bg-study-light/10 dark:bg-zinc-800 rounded-xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all duration-300 shrink-0">
-              <Settings2 size={18} />
+            <button className="p-2 sm:p-2.5 bg-study-light/10 dark:bg-zinc-800 rounded-xl shadow-sm text-study-dark dark:text-white hover:bg-study-primary hover:text-white transition-all shrink-0">
+              <Settings2 size={16} className="sm:size-[18px]" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 rounded-2xl bg-white dark:bg-zinc-950 border-study-light/20 p-2 shadow-2xl">
