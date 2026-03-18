@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, GraduationCap, Loader2, Info, Zap, X, BookOpen, Menu, CheckSquare, Square, FileText } from 'lucide-react';
+import { Send, Sparkles, GraduationCap, Loader2, Info, Zap, X, BookOpen, Menu, CheckSquare, Square, FileText, User } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,12 +26,19 @@ import QuizComponent from './QuizComponent';
 import { useAuth } from '@/components/AuthProvider';
 import { cn } from "@/lib/utils";
 
+interface Message {
+  role: 'user' | 'assistant';
+  text: string;
+  sources?: string[];
+  isSummary?: boolean;
+}
+
 const ChatArea = () => {
   const { subjectId } = useParams();
   const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<null | { text: string; sources: string[]; isQuiz?: boolean; isSummary?: boolean }>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [currentQuiz, setCurrentQuiz] = useState<any[] | null>(null);
   const [availableDocs, setAvailableDocs] = useState<any[]>([]);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -40,10 +47,8 @@ const ChatArea = () => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (response || isLoading || currentQuiz) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [response, isLoading, currentQuiz]);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading, currentQuiz]);
 
   useEffect(() => {
     if (subjectId) fetchDocuments();
@@ -57,7 +62,6 @@ const ChatArea = () => {
       .eq('status', 'ready');
     if (data) {
       setAvailableDocs(data);
-      // Seleciona todos por padrão
       setSelectedDocs(data.map(d => d.id));
     }
   };
@@ -68,44 +72,18 @@ const ChatArea = () => {
     );
   };
 
-  const checkDailyLimit = async () => {
-    const today = new Date().toISOString().split('T')[0];
-    const { count, error } = await supabase
-      .from('quiz_history')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user?.id)
-      .eq('subject_id', subjectId)
-      .gte('created_at', today);
-
-    if (error) return true;
-    return (count || 0) < 1;
-  };
-
-  const startActionWithFiles = (type: 'quiz' | 'summary') => {
-    if (availableDocs.length === 0) {
-      toast.error("Nenhum material disponível para esta matéria ainda.");
-      return;
-    }
-    setPendingAction(type);
-    setShowFileSelector(true);
-  };
-
   const handleAction = async (actionType: 'chat' | 'quiz' | 'summary', customQuery?: string) => {
     const textToSearch = customQuery || query;
     if (!textToSearch.trim() && actionType === 'chat') return;
 
-    if (actionType === 'quiz') {
-      const canCreate = await checkDailyLimit();
-      if (!canCreate) {
-        toast.error("Limite atingido! Você só pode gerar 1 simulado por dia nesta matéria.");
-        return;
-      }
+    if (actionType !== 'quiz') {
+      // Adiciona a pergunta do usuário ao chat imediatamente
+      setMessages(prev => [...prev, { role: 'user', text: textToSearch }]);
     }
 
     setIsLoading(true);
-    setResponse(null);
-    if (actionType === 'quiz') setCurrentQuiz(null);
     setShowFileSelector(false);
+    if (actionType === 'chat') setQuery("");
 
     try {
       const { data, error } = await supabase.functions.invoke('chat-with-gemini', {
@@ -127,10 +105,13 @@ const ChatArea = () => {
           toast.error("Erro ao gerar simulado. Tente novamente.");
         }
       } else {
-        setResponse(data);
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          text: data.text, 
+          sources: data.sources,
+          isSummary: data.isSummary 
+        }]);
       }
-
-      if (actionType === 'chat') setQuery("");
     } catch (err: any) {
       toast.error(`Erro: ${err.message}`);
     } finally {
@@ -139,195 +120,121 @@ const ChatArea = () => {
     }
   };
 
-  const handleFinishQuiz = () => {
-    setCurrentQuiz(null);
-    setResponse(null);
-    setQuery("");
+  const startActionWithFiles = (type: 'quiz' | 'summary') => {
+    if (availableDocs.length === 0) {
+      toast.error("Nenhum material disponível para esta matéria ainda.");
+      return;
+    }
+    setPendingAction(type);
+    setShowFileSelector(true);
   };
 
   return (
-    <div className="flex flex-col min-h-full w-full max-w-3xl mx-auto relative">
-      <div className="flex items-center justify-between mb-8 px-4">
+    <div className="flex flex-col min-h-full w-full max-w-3xl mx-auto relative px-4">
+      <div className="flex items-center justify-between mb-6">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold text-study-dark dark:text-white flex items-center gap-2">
             Professor Virtual
             <Sparkles className="text-study-primary" size={20} />
           </h2>
-          <p className="text-study-medium dark:text-zinc-400 text-sm">Consultando apenas o material oficial.</p>
+          <p className="text-study-medium dark:text-zinc-400 text-xs font-medium uppercase tracking-widest">IA Baseada no seu Material</p>
         </div>
 
         {!currentQuiz && !isLoading && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="rounded-full h-12 w-12 border-study-primary/20 bg-study-primary/10 text-study-primary shadow-lg hover:bg-study-primary hover:text-white transition-all">
-                <Menu size={24} />
+              <Button variant="outline" size="icon" className="rounded-full h-10 w-10 border-study-primary/20 bg-study-primary/10 text-study-primary">
+                <Menu size={20} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-2xl bg-white dark:bg-zinc-900 border-study-light/20 shadow-2xl p-2">
-              <DropdownMenuItem 
-                onClick={() => startActionWithFiles('quiz')}
-                className="rounded-xl flex items-center gap-3 p-3 cursor-pointer hover:bg-study-primary/10"
-              >
-                <div className="bg-study-primary p-2 rounded-lg text-white">
-                  <GraduationCap size={18} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-bold text-sm">Gerar Simulado</span>
-                  <span className="text-[10px] text-study-medium font-bold uppercase">Escolha os arquivos</span>
-                </div>
+            <DropdownMenuContent align="end" className="w-56 rounded-2xl bg-white dark:bg-zinc-900 p-2 shadow-2xl">
+              <DropdownMenuItem onClick={() => startActionWithFiles('quiz')} className="rounded-xl flex items-center gap-3 p-3 cursor-pointer">
+                <div className="bg-study-primary p-2 rounded-lg text-white"><GraduationCap size={16} /></div>
+                <div className="flex flex-col"><span className="font-bold text-sm">Gerar Simulado</span><span className="text-[10px] text-study-medium uppercase">Validar Conhecimento</span></div>
               </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => startActionWithFiles('summary')}
-                className="rounded-xl flex items-center gap-3 p-3 cursor-pointer mt-1 hover:bg-study-primary/10"
-              >
-                <div className="bg-blue-500 p-2 rounded-lg text-white">
-                  <BookOpen size={18} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-bold text-sm">Gerar Resumo</span>
-                  <span className="text-[10px] text-study-medium font-bold uppercase">Escolha os arquivos</span>
-                </div>
+              <DropdownMenuItem onClick={() => startActionWithFiles('summary')} className="rounded-xl flex items-center gap-3 p-3 cursor-pointer mt-1">
+                <div className="bg-blue-500 p-2 rounded-lg text-white"><BookOpen size={16} /></div>
+                <div className="flex flex-col"><span className="font-bold text-sm">Gerar Resumo</span><span className="text-[10px] text-study-medium uppercase">Tópicos Principais</span></div>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
       </div>
 
-      <div className="flex-1 space-y-6 px-4 pb-32">
-        <AnimatePresence mode="wait">
-          {isLoading && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center py-20 gap-4"
-            >
-              <Loader2 className="animate-spin text-study-primary" size={48} />
-              <p className="text-study-medium font-medium text-sm animate-pulse">Consultando base de dados...</p>
-            </motion.div>
-          )}
-
-          {currentQuiz && !isLoading && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-black text-study-primary uppercase tracking-widest text-[10px]">Simulado Ativo</h3>
-                <Button variant="ghost" size="sm" onClick={handleFinishQuiz} className="text-study-medium h-7 gap-1 text-[10px]">
-                  <X size={12} /> Cancelar
-                </Button>
-              </div>
-              <QuizComponent 
-                questions={currentQuiz} 
-                onClose={handleFinishQuiz} 
-                subjectId={subjectId!}
-              />
-            </div>
-          )}
-
-          {response && !isLoading && (
+      <div className="flex-1 flex flex-col gap-4 pb-32">
+        <AnimatePresence>
+          {messages.map((msg, idx) => (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
+              key={idx}
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              className={cn(
+                "max-w-[85%] flex flex-col gap-1",
+                msg.role === 'user' ? "self-end items-end" : "self-start items-start"
+              )}
             >
-              <Card className="border-none shadow-study bg-white dark:bg-zinc-900 overflow-hidden rounded-3xl">
-                <CardContent className="p-6 sm:p-10">
-                  {response.isSummary && (
-                    <div className="mb-6 pb-4 border-b border-study-light/30 flex items-center gap-2">
-                      <div className="bg-blue-500 p-2 rounded-xl text-white">
-                        <BookOpen size={20} />
-                      </div>
-                      <h3 className="font-black text-study-dark dark:text-white uppercase tracking-wider">Resumo Pedagógico</h3>
-                    </div>
-                  )}
-
-                  <div className="prose prose-study max-w-none dark:prose-invert text-sm sm:text-base">
-                    {response.text.split('\n').map((line, i) => (
-                      <p key={i} className="text-study-dark dark:text-zinc-200 leading-relaxed mb-4">
-                        {line}
-                      </p>
+              <div className={cn(
+                "p-4 rounded-2xl shadow-sm text-sm sm:text-base leading-relaxed",
+                msg.role === 'user' 
+                  ? "bg-study-primary text-zinc-900 rounded-tr-none font-medium" 
+                  : "bg-white dark:bg-zinc-900 text-study-dark dark:text-zinc-100 rounded-tl-none border border-study-light/10"
+              )}>
+                {msg.isSummary && (
+                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-study-light/20">
+                    <BookOpen size={16} className="text-study-primary" />
+                    <span className="text-xs font-black uppercase tracking-widest text-study-primary">Resumo do Material</span>
+                  </div>
+                )}
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  {msg.text.split('\n').map((line, i) => (
+                    <p key={i} className="mb-2 last:mb-0">{line}</p>
+                  ))}
+                </div>
+                
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-study-light/10 flex flex-wrap gap-1.5">
+                    {msg.sources.map((s, i) => (
+                      <span key={i} className="text-[9px] font-bold uppercase bg-study-light/20 dark:bg-zinc-800 px-2 py-0.5 rounded-full text-study-medium">
+                        {s}
+                      </span>
                     ))}
                   </div>
+                )}
+              </div>
+            </motion.div>
+          ))}
 
-                  <div className="mt-8 pt-6 border-t border-study-light/30 dark:border-zinc-800">
-                    <div className="flex items-center gap-2 text-study-medium dark:text-zinc-400 mb-3">
-                      <Info size={14} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Fontes analisadas:</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {response.sources.map((source, i) => (
-                        <span key={i} className="px-3 py-1 rounded-full bg-study-light/30 dark:bg-zinc-800/50 text-study-primary text-[10px] font-bold border border-study-light/50 dark:border-zinc-700">
-                          {source}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Button onClick={() => setResponse(null)} variant="ghost" className="w-full text-study-medium text-xs hover:bg-study-light/10">Limpar esta resposta</Button>
+          {isLoading && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="self-start flex items-center gap-3 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-study-light/10 shadow-sm">
+              <div className="flex gap-1">
+                <span className="w-1.5 h-1.5 bg-study-primary rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                <span className="w-1.5 h-1.5 bg-study-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                <span className="w-1.5 h-1.5 bg-study-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+              </div>
+              <span className="text-[10px] font-black uppercase text-study-medium tracking-widest">IA Analisando...</span>
             </motion.div>
           )}
+
+          {currentQuiz && (
+            <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm p-4 flex items-center justify-center overflow-y-auto">
+              <div className="w-full max-w-xl">
+                <QuizComponent questions={currentQuiz} onClose={() => setCurrentQuiz(null)} subjectId={subjectId!} />
+              </div>
+            </div>
+          )}
         </AnimatePresence>
-        
         <div ref={bottomRef} className="h-4" />
       </div>
 
-      <Dialog open={showFileSelector} onOpenChange={setShowFileSelector}>
-        <DialogContent className="rounded-[2.5rem] max-w-[90vw] sm:max-w-md bg-white dark:bg-zinc-900 border-none shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-study-dark dark:text-white">
-              {pendingAction === 'quiz' ? 'Gerar Simulado' : 'Gerar Resumo'}
-            </DialogTitle>
-            <p className="text-xs text-study-medium font-bold uppercase tracking-widest">Selecione os materiais de base</p>
-          </DialogHeader>
-          
-          <div className="py-4 space-y-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
-            {availableDocs.map((doc) => (
-              <button
-                key={doc.id}
-                onClick={() => toggleDoc(doc.id)}
-                className={cn(
-                  "w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all",
-                  selectedDocs.includes(doc.id) 
-                    ? "border-study-primary bg-study-primary/5" 
-                    : "border-study-light/20 bg-transparent opacity-60"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn("p-2 rounded-xl", selectedDocs.includes(doc.id) ? "bg-study-primary text-white" : "bg-study-light/20 text-study-medium")}>
-                    <FileText size={18} />
-                  </div>
-                  <span className="text-sm font-bold text-study-dark dark:text-zinc-200 text-left truncate max-w-[200px]">{doc.name}</span>
-                </div>
-                {selectedDocs.includes(doc.id) ? <CheckSquare className="text-study-primary" size={20} /> : <Square className="text-study-medium" size={20} />}
-              </button>
-            ))}
-          </div>
-
-          <DialogFooter>
-            <Button 
-              onClick={() => handleAction(pendingAction!, pendingAction === 'quiz' ? "Gere um simulado sobre os arquivos selecionados." : "Gere um resumo estruturado dos arquivos selecionados.")}
-              disabled={selectedDocs.length === 0}
-              className="w-full bg-study-primary text-white rounded-xl py-6 font-bold shadow-lg h-auto"
-            >
-              Começar {pendingAction === 'quiz' ? 'Simulado' : 'Resumo'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {!currentQuiz && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent z-40">
-          <form 
-            onSubmit={(e) => { e.preventDefault(); handleAction('chat'); }} 
-            className="max-w-3xl mx-auto relative group"
-          >
-            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-              <Zap className="text-study-medium group-focus-within:text-study-primary transition-colors" size={20} />
-            </div>
+          <form onSubmit={(e) => { e.preventDefault(); handleAction('chat'); }} className="max-w-3xl mx-auto relative">
             <Input
-              placeholder="Pergunte algo sobre o material..."
-              className="pl-12 pr-14 sm:pr-24 py-7 rounded-[2rem] border-none shadow-2xl bg-white dark:bg-zinc-900 text-base focus-visible:ring-2 focus-visible:ring-study-primary/20 transition-all dark:text-white"
+              placeholder="Pergunte ao Professor Virtual..."
+              className="pl-4 pr-14 py-7 rounded-[2rem] border-none shadow-2xl bg-white dark:bg-zinc-900 text-sm focus-visible:ring-2 focus-visible:ring-study-primary/20 transition-all dark:text-white"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              disabled={isLoading}
             />
             <Button 
               type="submit"
@@ -335,11 +242,26 @@ const ChatArea = () => {
               className="absolute right-2 top-2 bottom-2 aspect-square bg-study-primary hover:bg-study-dark text-white rounded-full transition-all"
               disabled={isLoading || !query.trim()}
             >
-              {isLoading ? <Loader2 className="animate-spin" size={18} /> : <Send size={20} />}
+              <Send size={20} />
             </Button>
           </form>
         </div>
       )}
+
+      <Dialog open={showFileSelector} onOpenChange={setShowFileSelector}>
+        <DialogContent className="rounded-[2.5rem] max-w-[90vw] sm:max-w-md bg-white dark:bg-zinc-900 border-none shadow-2xl">
+          <DialogHeader><DialogTitle className="text-xl font-black">Selecionar Materiais</DialogTitle></DialogHeader>
+          <div className="py-4 space-y-3 max-h-[40vh] overflow-y-auto">
+            {availableDocs.map((doc) => (
+              <button key={doc.id} onClick={() => toggleDoc(doc.id)} className={cn("w-full flex items-center justify-between p-4 rounded-2xl border-2", selectedDocs.includes(doc.id) ? "border-study-primary bg-study-primary/5" : "border-study-light/20 opacity-60")}>
+                <div className="flex items-center gap-3"><FileText size={18} className="text-study-primary" /><span className="text-xs font-bold truncate max-w-[200px]">{doc.name}</span></div>
+                {selectedDocs.includes(doc.id) ? <CheckSquare className="text-study-primary" size={20} /> : <Square className="text-study-medium" size={20} />}
+              </button>
+            ))}
+          </div>
+          <DialogFooter><Button onClick={() => handleAction(pendingAction!)} disabled={selectedDocs.length === 0} className="w-full bg-study-primary text-white rounded-xl py-6 font-bold uppercase tracking-widest">Iniciar {pendingAction === 'quiz' ? 'Simulado' : 'Resumo'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
