@@ -24,13 +24,19 @@ import { supabase } from '@/integrations/supabase/client';
 import FeedbackSection from '@/components/FeedbackSection';
 import { Badge } from "@/components/ui/badge";
 
+// E-mails com permissão total de administrador
+const ADMIN_EMAILS = ['arlei85@hotmail.com', 'arlei.se.silverio85@gmail.com'];
+
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const { signOut, isAdmin, isProfessor, user } = useAuth();
+  const { signOut, isAdmin: authIsAdmin, isProfessor, user } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [authorizedEmails, setAuthorizedEmails] = useState<any[]>([]);
   const [loadingEmails, setLoadingEmails] = useState(false);
+
+  // Considera admin se tiver o cargo no banco OU se for um dos e-mails mestres
+  const isAdmin = authIsAdmin || (user?.email && ADMIN_EMAILS.includes(user.email));
 
   useEffect(() => {
     if (isAdmin) fetchAuthorizedEmails();
@@ -38,49 +44,67 @@ const SettingsPage = () => {
 
   const fetchAuthorizedEmails = async () => {
     setLoadingEmails(true);
-    const { data } = await supabase.from('authorized_professor_emails').select('*').order('created_at', { ascending: false });
-    if (data) setAuthorizedEmails(data);
-    setLoadingEmails(false);
+    try {
+      const { data } = await supabase
+        .from('authorized_professor_emails')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (data) setAuthorizedEmails(data);
+    } catch (err) {
+      console.error("Erro ao carregar e-mails:", err);
+    } finally {
+      setLoadingEmails(false);
+    }
   };
 
   const handleAuthorizeEmail = async () => {
-    if (!newEmail.includes('@')) return showError("Email inválido");
+    if (!newEmail.includes('@')) return showError("Digite um e-mail válido");
     
-    const { error } = await supabase.from('authorized_professor_emails').insert([{ email: newEmail.trim(), added_by: user?.id }]);
+    const { error } = await supabase
+      .from('authorized_professor_emails')
+      .insert([{ email: newEmail.trim().toLowerCase(), added_by: user?.id }]);
+    
     if (error) {
-      showError("Email já autorizado ou erro no servidor.");
+      showError("Este e-mail já está na lista ou ocorreu um erro.");
     } else {
-      showSuccess("Professor autorizado!");
+      showSuccess("Professor autorizado com sucesso!");
       setNewEmail("");
       fetchAuthorizedEmails();
     }
   };
 
   const handleRemoveAuth = async (email: string) => {
-    const { error } = await supabase.from('authorized_professor_emails').delete().eq('email', email);
-    if (!error) fetchAuthorizedEmails();
+    const { error } = await supabase
+      .from('authorized_professor_emails')
+      .delete()
+      .eq('email', email);
+    
+    if (!error) {
+      showSuccess("Autorização removida");
+      fetchAuthorizedEmails();
+    }
   };
 
   const handleLogout = async () => {
     try {
-      showSuccess("Saindo da conta...");
       await signOut();
+      showSuccess("Até logo!");
       navigate("/login");
     } catch (error) {
-      showError("Erro ao sair da conta");
+      showError("Erro ao sair");
     }
   };
 
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('delete-account');
+      const { error } = await supabase.functions.invoke('delete-account');
       if (error) throw error;
-      showSuccess("Conta excluída com sucesso.");
+      showSuccess("Sua conta foi excluída.");
       await signOut();
       navigate("/login");
     } catch (error: any) {
-      showError("Não foi possível excluir sua conta agora.");
+      showError("Erro ao excluir conta.");
     } finally {
       setIsDeleting(false);
     }
@@ -95,11 +119,12 @@ const SettingsPage = () => {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-study-dark dark:text-white">Ajustes</h1>
-            <p className="text-study-medium text-sm font-medium">Configurações do aplicativo</p>
+            <p className="text-study-medium text-sm font-medium">Configurações e Gestão</p>
           </div>
         </div>
 
         <div className="space-y-10">
+          {/* SEÇÃO DO PROFESSOR (Visível para professores e admins) */}
           {(isAdmin || isProfessor) && (
             <section className="space-y-3">
               <h2 className="text-xs font-bold text-study-primary uppercase tracking-widest ml-1">Portal Exclusivo</h2>
@@ -119,9 +144,13 @@ const SettingsPage = () => {
             </section>
           )}
 
+          {/* SEÇÃO DE ADMINISTRAÇÃO (Apenas para Administradores) */}
           {isAdmin && (
             <section className="space-y-3">
-              <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Autorizar Professores</h2>
+              <div className="flex items-center justify-between ml-1">
+                <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest">Autorizar Professores</h2>
+                <Badge variant="outline" className="text-[9px] border-study-primary text-study-primary">ADMIN</Badge>
+              </div>
               <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
                 <CardContent className="pt-6 space-y-4">
                   <div className="flex gap-2">
@@ -129,23 +158,31 @@ const SettingsPage = () => {
                       placeholder="Email do professor..." 
                       value={newEmail}
                       onChange={e => setNewEmail(e.target.value)}
-                      className="rounded-xl h-12"
+                      className="rounded-xl h-12 bg-zinc-800/50 border-zinc-700 text-white"
                     />
-                    <Button onClick={handleAuthorizeEmail} className="bg-study-primary h-12 w-12 p-0 rounded-xl">
-                      <UserPlus size={20} />
+                    <Button onClick={handleAuthorizeEmail} className="bg-study-primary h-12 w-12 p-0 rounded-xl shrink-0">
+                      <UserPlus size={20} className="text-zinc-900" />
                     </Button>
                   </div>
 
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {authorizedEmails.map(auth => (
-                      <div key={auth.email} className="flex items-center justify-between p-3 bg-study-light/5 rounded-xl border border-study-light/10">
-                        <span className="text-xs font-bold text-study-dark truncate flex-1">{auth.email}</span>
-                        <button onClick={() => handleRemoveAuth(auth.email)} className="text-red-500 p-1 hover:bg-red-50 rounded-lg">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ))}
-                    {authorizedEmails.length === 0 && <p className="text-center py-4 text-[10px] text-study-medium uppercase font-bold">Nenhum email autorizado</p>}
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                    {loadingEmails ? (
+                      <div className="flex justify-center py-4"><Loader2 className="animate-spin text-study-primary" size={20} /></div>
+                    ) : authorizedEmails.length > 0 ? (
+                      authorizedEmails.map(auth => (
+                        <div key={auth.email} className="flex items-center justify-between p-3.5 bg-zinc-800/40 rounded-2xl border border-white/5 group">
+                          <span className="text-xs font-bold text-zinc-300 truncate flex-1">{auth.email}</span>
+                          <button 
+                            onClick={() => handleRemoveAuth(auth.email)} 
+                            className="text-red-500 p-2 hover:bg-red-500/10 rounded-xl transition-colors opacity-60 group-hover:opacity-100"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center py-6 text-[10px] text-study-medium uppercase font-bold opacity-40">Nenhum professor autorizado</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -160,7 +197,7 @@ const SettingsPage = () => {
               <CardContent className="p-0">
                 <button 
                   onClick={() => navigate('/terms')}
-                  className="w-full flex items-center justify-between p-4 px-6 border-b border-study-light/20 dark:border-zinc-800 hover:bg-study-light/10 transition-colors"
+                  className="w-full flex items-center justify-between p-4 px-6 border-b border-white/5 hover:bg-study-light/10 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-xl">
