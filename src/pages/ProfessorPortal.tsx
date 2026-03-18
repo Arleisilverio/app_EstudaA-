@@ -38,6 +38,7 @@ const ProfessorPortal = () => {
     if (professorData.subject_id) {
       fetchDocuments();
       
+      // Escuta mudanças nos documentos da matéria vinculada
       const channel = supabase
         .channel('prof-docs-realtime')
         .on('postgres_changes', { 
@@ -145,8 +146,6 @@ const ProfessorPortal = () => {
     }
   };
 
-  const currentSubjectName = subjects.find(s => s.id === professorData.subject_id)?.name;
-
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-study-primary" size={48} /></div>;
 
   return (
@@ -185,7 +184,7 @@ const ProfessorPortal = () => {
           </CardContent>
         </Card>
 
-        {/* Lista de Materiais - Ajustada para não cortar ícones */}
+        {/* Lista de Materiais */}
         <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
           <CardHeader className="border-b border-white/5 bg-zinc-800/20 p-4 sm:p-6">
             <CardTitle className="text-[10px] font-black uppercase tracking-widest text-study-medium">Materiais na Base de Conhecimento</CardTitle>
@@ -223,9 +222,14 @@ const ProfessorPortal = () => {
         </Card>
 
         {/* Chat de Validação */}
-        {professorData.subject_id && (
+        {professorData.subject_id ? (
           <div className="px-1">
             <ProfessorChat subjectId={professorData.subject_id} />
+          </div>
+        ) : (
+          <div className="p-10 text-center bg-zinc-800/30 rounded-3xl border-2 border-dashed border-zinc-700">
+            <Settings2 className="mx-auto mb-4 text-study-medium" size={32} />
+            <p className="text-xs font-bold text-study-medium uppercase">Vincule uma matéria em "Ajustes" para ativar o Chat.</p>
           </div>
         )}
       </main>
