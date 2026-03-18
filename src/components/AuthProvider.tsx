@@ -33,32 +33,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [role, setRole] = useState<UserRole>('student');
 
   const fetchUserRole = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('user_role')
-      .eq('id', userId)
-      .single();
-    
-    if (data) {
-      setRole(data.user_role as UserRole);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_role')
+        .eq('id', userId)
+        .single();
+      
+      if (data) {
+        setRole(data.user_role as UserRole);
+      }
+    } catch (err) {
+      console.error("Erro ao buscar role:", err);
     }
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      if (currentUser) fetchUserRole(currentUser.id);
+      
+      if (currentUser) {
+        await fetchUserRole(currentUser.id);
+      }
+      
       setLoading(false);
-    });
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      if (currentUser) fetchUserRole(currentUser.id);
-      else setRole('student');
+      
+      if (currentUser) {
+        await fetchUserRole(currentUser.id);
+      } else {
+        setRole('student');
+      }
+      
       setLoading(false);
     });
 
