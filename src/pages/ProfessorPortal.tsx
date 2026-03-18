@@ -1,12 +1,21 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GraduationCap, Upload, FileText, Loader2, ShieldCheck, Settings2, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from 'sonner';
@@ -21,13 +30,16 @@ const ProfessorPortal = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [subjects, setSubjects] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [professorData, setProfessorData] = useState({
     name: '',
     subject_id: '',
     avatar_url: ''
   });
+
+  // Estados para exclusão por Long Press
+  const [docToDelete, setDocToDelete] = useState<{ id: string, path: string, name: string } | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchProfessorData();
@@ -37,7 +49,6 @@ const ProfessorPortal = () => {
   useEffect(() => {
     if (professorData.subject_id) {
       fetchDocuments();
-      
       const channel = supabase
         .channel('prof-docs-realtime')
         .on('postgres_changes', { 
@@ -47,14 +58,12 @@ const ProfessorPortal = () => {
           filter: `subject_id=eq.${professorData.subject_id}`
         }, () => fetchDocuments())
         .subscribe();
-
       return () => { supabase.removeChannel(channel); };
     }
   }, [professorData.subject_id]);
 
   const fetchSubjects = async () => {
-    const { data } = await supabase.from('subjects').select('*').order('name');
-    if (data) setSubjects(data);
+    await supabase.from('subjects').select('*').order('name');
   };
 
   const fetchDocuments = async () => {
@@ -99,22 +108,15 @@ const ProfessorPortal = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${professorData.subject_id}-${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(fileName, file);
-
+      const { error: uploadError } = await supabase.storage.from('documents').upload(fileName, file);
       if (uploadError) throw uploadError;
-
-      const { error: dbError } = await supabase.from('documents').insert([{
+      await supabase.from('documents').insert([{
         name: file.name,
         file_path: fileName,
         subject_id: professorData.subject_id,
         user_id: user?.id,
         status: 'ready'
       }]);
-
-      if (dbError) throw dbError;
       toast.success("Material adicionado com sucesso!", { id: toastId });
       fetchDocuments();
     } catch (err: any) {
@@ -125,15 +127,32 @@ const ProfessorPortal = () => {
     }
   };
 
-  const removeDoc = async (id: string, path: string) => {
-    if (!confirm("Excluir este material permanentemente?")) return;
+  const confirmDelete = async () => {
+    if (!docToDelete) return;
     try {
-      await supabase.from('documents').delete().eq('id', id);
-      await supabase.storage.from('documents').remove([path]);
+      await supabase.from('documents').delete().eq('id', docToDelete.id);
+      await supabase.storage.from('documents').remove([docToDelete.path]);
       toast.success("Material removido.");
       fetchDocuments();
     } catch (err) {
       toast.error("Erro ao remover.");
+    } finally {
+      setDocToDelete(null);
+    }
+  };
+
+  // Lógica de Long Press
+  const startLongPress = (doc: any) => {
+    longPressTimer.current = setTimeout(() => {
+      if (navigator.vibrate) navigator.vibrate(50); // Feedback tátil
+      setDocToDelete({ id: doc.id, path: doc.file_path, name: doc.name });
+    }, 600);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
   };
 
@@ -183,7 +202,7 @@ const ProfessorPortal = () => {
 
         <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
           <CardHeader className="border-b border-white/5 bg-zinc-800/20 p-4 sm:p-6">
-            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-study-medium">Materiais na Base de Conhecimento</CardTitle>
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-study-medium">Materiais de Estudo</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <ScrollArea className="h-48 w-full">
@@ -192,24 +211,24 @@ const ProfessorPortal = () => {
               ) : (
                 <div className="divide-y divide-white/5">
                   {documents.map((doc) => (
-                    <div key={doc.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors gap-4">
+                    <div 
+                      key={doc.id} 
+                      className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors gap-4 active:scale-95 select-none touch-none"
+                      onPointerDown={() => startLongPress(doc)}
+                      onPointerUp={cancelLongPress}
+                      onPointerLeave={cancelLongPress}
+                    >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <FileText size={18} className="text-study-primary shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-zinc-200 truncate pr-2" title={doc.name}>{doc.name}</p>
+                          <p className="text-xs font-bold text-zinc-200 truncate pr-2">{doc.name}</p>
                           <div className="flex items-center gap-1 mt-0.5">
                             {getStatusIcon(doc.status)}
                             <span className="text-[8px] font-black uppercase text-study-medium truncate">{doc.status === 'ready' ? 'Ativo' : 'Lendo'}</span>
                           </div>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => removeDoc(doc.id, doc.file_path)} 
-                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all shrink-0 flex items-center justify-center"
-                        title="Remover material"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="text-[8px] font-bold text-study-medium/30 uppercase">Segure p/ apagar</div>
                     </div>
                   ))}
                 </div>
@@ -229,6 +248,25 @@ const ProfessorPortal = () => {
           </div>
         )}
       </main>
+
+      <AlertDialog open={!!docToDelete} onOpenChange={(open) => !open && setDocToDelete(null)}>
+        <AlertDialogContent className="rounded-3xl bg-zinc-900 text-white border-white/10">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="text-red-500" size={20} /> Excluir Material?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              Deseja remover permanentemente o arquivo <strong>{docToDelete?.name}</strong> da base de estudos?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="rounded-xl bg-zinc-800 border-none text-white hover:bg-zinc-700">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 text-white rounded-xl font-bold hover:bg-red-700">
+              Sim, excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <BottomNav />
     </div>
