@@ -37,6 +37,7 @@ const SettingsPage = () => {
   const [newEmail, setNewEmail] = useState("");
   const [authorizedEmails, setAuthorizedEmails] = useState<any[]>([]);
   const [loadingEmails, setLoadingEmails] = useState(false);
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
   
   // Estados para o Perfil do Professor
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -148,22 +149,34 @@ const SettingsPage = () => {
   };
 
   const handleAuthorizeEmail = async () => {
-    if (!newEmail.includes('@')) return showError("Digite um e-mail válido");
-    const { error } = await supabase
-      .from('authorized_professor_emails')
-      .insert([{ email: newEmail.trim().toLowerCase(), added_by: user?.id }]);
-    if (error) showError("Erro ao autorizar.");
-    else {
-      showSuccess("Professor autorizado!");
+    const emailToAuth = newEmail.trim().toLowerCase();
+    if (!emailToAuth.includes('@')) return showError("Digite um e-mail válido");
+    
+    setIsSavingEmail(true);
+    try {
+      const { error } = await supabase
+        .from('authorized_professor_emails')
+        .insert([{ email: emailToAuth, added_by: user?.id }]);
+      
+      if (error) {
+        if (error.code === '23505') throw new Error("Este e-mail já está autorizado.");
+        throw error;
+      }
+
+      showSuccess("Professor autorizado com sucesso!");
       setNewEmail("");
       fetchAuthorizedEmails();
+    } catch (err: any) {
+      showError(err.message || "Erro ao autorizar e-mail.");
+    } finally {
+      setIsSavingEmail(false);
     }
   };
 
   const handleRemoveAuth = async (email: string) => {
     const { error } = await supabase.from('authorized_professor_emails').delete().eq('email', email);
     if (!error) {
-      showSuccess("Removido");
+      showSuccess("Autorização removida.");
       fetchAuthorizedEmails();
     }
   };
@@ -304,9 +317,10 @@ const SettingsPage = () => {
                       value={newEmail}
                       onChange={e => setNewEmail(e.target.value)}
                       className="rounded-xl h-12 bg-zinc-800/50 border-zinc-700 text-white"
+                      disabled={isSavingEmail}
                     />
-                    <Button onClick={handleAuthorizeEmail} className="bg-study-primary h-12 w-12 p-0 rounded-xl shrink-0">
-                      <UserPlus size={20} className="text-zinc-900" />
+                    <Button onClick={handleAuthorizeEmail} disabled={isSavingEmail} className="bg-study-primary h-12 w-12 p-0 rounded-xl shrink-0">
+                      {isSavingEmail ? <Loader2 className="animate-spin text-zinc-900" /> : <UserPlus size={20} className="text-zinc-900" />}
                     </Button>
                   </div>
 
