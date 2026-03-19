@@ -27,8 +27,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading, role, isAdmin } = useAuth();
   const location = useLocation();
   
-  // Se ainda estiver carregando a sessão inicial, mostra o loader
-  if (loading) {
+  // Só mostramos o loader se estiver carregando E não tivermos uma sessão em cache
+  // Isso evita o loop de sincronização ao voltar para a aba do app
+  if (loading && !session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
         <Loader2 className="animate-spin text-study-primary" size={48} />
@@ -39,12 +40,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // Se não houver sessão, redireciona para o login
-  if (!session) {
+  if (!session && !loading) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Lógica de permissões por papel
   const profAllowedPaths = ['/professor-portal', '/settings', '/support', '/terms', '/exams', '/profile'];
   
   if (role === 'professor' && !isAdmin && !profAllowedPaths.includes(location.pathname)) {

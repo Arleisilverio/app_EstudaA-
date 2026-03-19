@@ -51,45 +51,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    // Busca inicial da sessão
+    // Busca inicial da sessão de forma imediata
     const initAuth = async () => {
       const { data: { session: initialSession } } = await supabase.auth.getSession();
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
       
-      if (initialSession?.user) {
+      if (initialSession) {
+        setSession(initialSession);
+        setUser(initialSession.user);
         await fetchUserRole(initialSession.user.id);
       }
       
+      // Libera o carregamento inicial
       setLoading(false);
     };
 
     initAuth();
 
-    // Escuta mudanças de estado
+    // Escuta mudanças de estado sem resetar o 'loading' global para true
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
-        await fetchUserRole(currentSession.user.id);
-      } else {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        if (currentSession?.user) {
+          await fetchUserRole(currentSession.user.id);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
         setRole('student');
       }
-
-      // Garante que o loading pare em qualquer evento principal
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-        setLoading(false);
-      }
+      
+      // Garante que o loading inicial seja finalizado
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
-    setLoading(true);
     await supabase.auth.signOut();
-    setLoading(false);
   };
 
   const isAdmin = role === 'admin' || (user?.email ? ADMIN_EMAILS.includes(user.email) : false);
