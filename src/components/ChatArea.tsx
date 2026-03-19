@@ -46,28 +46,46 @@ const ChatArea = () => {
   const [pendingAction, setPendingAction] = useState<'quiz' | 'summary' | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const CACHE_KEY = `cached_docs_${subjectId}`;
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading, currentQuiz]);
 
   useEffect(() => {
-    if (subjectId) fetchDocuments();
+    if (subjectId) {
+      // Carrega do cache para o seletor de arquivos ser instantâneo
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const docs = JSON.parse(cached);
+        setAvailableDocs(docs);
+        setSelectedDocs(docs.map((d: any) => d.id));
+      }
+      fetchDocuments();
+    }
   }, [subjectId]);
 
   const fetchDocuments = async () => {
-    const { data } = await supabase
-      .from('documents')
-      .select('id, name')
-      .eq('subject_id', subjectId)
-      .eq('status', 'ready');
-    if (data) {
-      setAvailableDocs(data);
-      setSelectedDocs(data.map(d => d.id));
+    try {
+      const { data } = await supabase
+        .from('documents')
+        .select('id, name')
+        .eq('subject_id', subjectId)
+        .eq('status', 'ready');
+      
+      if (data) {
+        setAvailableDocs(data);
+        setSelectedDocs(data.map(d => d.id));
+        // Atualiza o cache compartilhado com o FileSidebar
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      }
+    } catch (err) {
+      console.error("Erro ao carregar docs no chat:", err);
     }
   };
 
   const checkQuizLimit = async () => {
-    if (isAdmin || isProfessor) return true; // Admins e Profs não têm limite
+    if (isAdmin || isProfessor) return true;
 
     const today = new Date().toISOString().split('T')[0];
     const { count, error } = await supabase

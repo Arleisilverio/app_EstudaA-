@@ -36,6 +36,8 @@ const FileSidebar = () => {
   const [subjectName, setSubjectName] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const CACHE_KEY = `cached_docs_${subjectId}`;
+
   // Estados para Long Press
   const [docToDelete, setDocToDelete] = useState<Document | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -44,8 +46,16 @@ const FileSidebar = () => {
 
   useEffect(() => {
     if (subjectId) {
+      // Carrega do cache imediatamente
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        setDocuments(JSON.parse(cached));
+        setLoading(false);
+      }
+
       fetchSubjectInfo();
       fetchDocuments();
+
       const channel = supabase
         .channel(`docs-realtime-${subjectId}`)
         .on('postgres_changes', { 
@@ -66,15 +76,26 @@ const FileSidebar = () => {
 
   const fetchDocuments = async () => {
     try {
+      // Timeout de segurança de 5 segundos
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const { data, error } = await supabase
         .from('documents')
         .select('*')
         .eq('subject_id', subjectId)
         .order('created_at', { ascending: false });
+      
+      clearTimeout(timeoutId);
+      
       if (error) throw error;
-      setDocuments(data || []);
+      
+      if (data) {
+        setDocuments(data);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao carregar docs:", err);
     } finally {
       setLoading(false);
     }
@@ -182,7 +203,7 @@ const FileSidebar = () => {
         <CardContent className="p-0 flex-1">
           <ScrollArea className="h-[400px] px-4 py-4">
             <div className="flex flex-col gap-3">
-              {loading ? (
+              {loading && documents.length === 0 ? (
                 <div className="flex justify-center py-10"><Loader2 className="animate-spin text-study-primary" /></div>
               ) : documents.length === 0 ? (
                 <div className="text-center py-10 opacity-30 text-[10px] font-black uppercase">Nenhum arquivo</div>
