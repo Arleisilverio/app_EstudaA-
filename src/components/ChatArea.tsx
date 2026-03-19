@@ -221,8 +221,8 @@ const ChatArea = () => {
           )}
 
           {currentQuiz && (
-            <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm p-4 flex items-center justify-center overflow-y-auto">
-              <div className="w-full max-w-xl">
+            <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm p-4 overflow-y-auto flex flex-col items-center">
+              <div className="w-full max-w-xl py-10">
                 <QuizComponent questions={currentQuiz} onClose={() => setCurrentQuiz(null)} subjectId={subjectId!} />
               </div>
             </div>
