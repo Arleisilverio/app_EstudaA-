@@ -1,7 +1,7 @@
-const CACHE_NAME = 'estuda-ai-v1.1';
+const CACHE_NAME = 'estuda-ai-v1.2';
 const urlsToCache = ['/'];
 
-// Instalação e ativação imediata
+// Instalação e ativação imediata para garantir que o prompt de instalação apareça
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -23,14 +23,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Estratégia Network First: Tenta a rede, se falhar (offline), usa o cache
+// Estratégia Network First para não quebrar as chamadas da API/Supabase
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
-      .then((response) => {
-        // Opcional: atualizar o cache com a nova resposta
-        return response;
-      })
       .catch(() => {
         return caches.match(event.request);
       })
