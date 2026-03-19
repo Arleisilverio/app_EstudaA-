@@ -70,7 +70,10 @@ serve(async (req) => {
     
     if (action === 'quiz') {
       systemPrompt += `
-      TAREFA: Gere um SIMULADO DESAFIADOR com EXATAMENTE 10 QUESTÕES em formato JSON puro.
+      TAREFA: Gere um SIMULADO DE NÍVEL UNIVERSITÁRIO ALTAMENTE DESAFIADOR com EXATAMENTE 10 QUESTÕES em formato JSON puro.
+      - As perguntas devem exigir análise crítica, interpretação e compreensão profunda do material, não apenas memorização simples.
+      - DISTRIBUIÇÃO DE RESPOSTAS: Você DEVE variar a posição da resposta correta de forma aleatória entre as opções A, B, C e D (índices 0, 1, 2, 3). 
+      - É ESTRITAMENTE PROIBIDO concentrar a maioria das respostas corretas na mesma letra (como a letra A). Garanta uma distribuição equilibrada.
       - Baseie as perguntas estritamente no conteúdo dos arquivos fornecidos.
       - Não gere menos que 10 questões sob nenhuma circunstância.
       
@@ -79,10 +82,10 @@ serve(async (req) => {
         "questions": [
           {
             "id": 1,
-            "question": "Pergunta baseada no texto...",
-            "options": ["A", "B", "C", "D"],
-            "correctIndex": 0,
-            "explanation": "Explicação detalhada citando a fonte."
+            "question": "Pergunta complexa de nível acadêmico...",
+            "options": ["Opção A", "Opção B", "Opção C", "Opção D"],
+            "correctIndex": 2,
+            "explanation": "Explicação pedagógica detalhada justificando a resposta correta com base na fonte."
           }
         ]
       }`;
@@ -107,7 +110,7 @@ serve(async (req) => {
           { role: "system", content: `CONTEXTO DAS FONTES DISPONÍVEIS:\n${contextText || "Nenhum arquivo enviado ainda. Use conhecimentos gerais."}` },
           { role: "user", content: query }
         ],
-        temperature: 0.4
+        temperature: 0.7 // Aumentado levemente para maior variabilidade na distribuição de respostas
       })
     })
 
