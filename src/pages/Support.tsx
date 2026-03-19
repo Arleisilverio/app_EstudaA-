@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 // E-mails autorizados a editar esta página
 const SUPPORT_ADMIN_EMAILS = ['arlei85@hotmail.com', 'arlei.se.silverio85@gmail.com'];
 const DEV_NAME_KEY = "Arlei S. Silvério"; 
+const DEV_PHOTO_URL = "https://i.supaimg.com/ab10c538-a9f0-4a7a-9c0d-5a65ded30e00/01193380-dc6a-41e9-835c-5598b06bfeca.jpg";
 
 const SupportPage = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const SupportPage = () => {
     id: "",
     name: "Arlei S. Silvério",
     description: "Aluno de direito 7º período turno manhã",
-    image_url: "",
+    image_url: DEV_PHOTO_URL,
     email: 'arlei.se.silverio85@gmail.com'
   });
 
@@ -53,7 +54,7 @@ const SupportPage = () => {
           id: data.id,
           name: data.name || DEV_NAME_KEY,
           description: data.course && data.period ? `${data.course} • ${data.period}` : "Desenvolvedor do Sistema",
-          image_url: data.avatar_url || "",
+          image_url: data.avatar_url || DEV_PHOTO_URL,
           email: 'arlei.se.silverio85@gmail.com'
         });
       }
@@ -102,7 +103,7 @@ const SupportPage = () => {
 
       if (error) throw error;
 
-      setDevInfo(prev => ({ ...prev, description: "Informações removidas", image_url: "" }));
+      setDevInfo(prev => ({ ...prev, description: "Informações removidas", image_url: DEV_PHOTO_URL }));
       toast.success("Dados removidos com sucesso.");
       setIsEditing(false);
     } catch (err) {
