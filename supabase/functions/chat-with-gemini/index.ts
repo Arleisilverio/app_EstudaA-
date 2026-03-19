@@ -70,8 +70,9 @@ serve(async (req) => {
     
     if (action === 'quiz') {
       systemPrompt += `
-      TAREFA: Gere um SIMULADO DESAFIADOR em formato JSON puro.
+      TAREFA: Gere um SIMULADO DESAFIADOR com EXATAMENTE 10 QUESTÕES em formato JSON puro.
       - Baseie as perguntas estritamente no conteúdo dos arquivos fornecidos.
+      - Não gere menos que 10 questões sob nenhuma circunstância.
       
       ESTRUTURA JSON:
       {

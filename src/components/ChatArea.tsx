@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, GraduationCap, Loader2, Info, Zap, X, BookOpen, Menu, CheckSquare, Square, FileText, User } from 'lucide-react';
+import { Send, Sparkles, GraduationCap, Loader2, Info, Zap, X, BookOpen, Menu, CheckSquare, Square, FileText, User, AlertTriangle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,7 +35,7 @@ interface Message {
 
 const ChatArea = () => {
   const { subjectId } = useParams();
-  const { user } = useAuth();
+  const { user, isAdmin, isProfessor } = useAuth();
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -66,6 +66,21 @@ const ChatArea = () => {
     }
   };
 
+  const checkQuizLimit = async () => {
+    if (isAdmin || isProfessor) return true; // Admins e Profs não têm limite
+
+    const today = new Date().toISOString().split('T')[0];
+    const { count, error } = await supabase
+      .from('quiz_history')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user?.id)
+      .eq('subject_id', subjectId)
+      .gte('created_at', today);
+
+    if (error) return true;
+    return (count || 0) < 2;
+  };
+
   const toggleDoc = (id: string) => {
     setSelectedDocs(prev => 
       prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
@@ -75,6 +90,18 @@ const ChatArea = () => {
   const handleAction = async (actionType: 'chat' | 'quiz' | 'summary', customQuery?: string) => {
     const textToSearch = customQuery || query;
     if (!textToSearch.trim() && actionType === 'chat') return;
+
+    if (actionType === 'quiz') {
+      const canCreate = await checkQuizLimit();
+      if (!canCreate) {
+        toast.error("Limite atingido!", {
+          description: "Política de Uso: Você pode gerar no máximo 2 simulados por matéria ao dia. Tente novamente amanhã!",
+          duration: 5000
+        });
+        setShowFileSelector(false);
+        return;
+      }
+    }
 
     if (actionType !== 'quiz') {
       setMessages(prev => [...prev, { role: 'user', text: textToSearch }]);
@@ -99,6 +126,7 @@ const ChatArea = () => {
       if (data.isQuiz) {
         try {
           const parsed = JSON.parse(data.text.trim());
+          if (!parsed.questions || parsed.questions.length < 1) throw new Error("Quiz vazio");
           setCurrentQuiz(parsed.questions);
         } catch (e) {
           toast.error("Erro ao gerar simulado. Tente novamente.");
@@ -255,16 +283,55 @@ const ChatArea = () => {
 
       <Dialog open={showFileSelector} onOpenChange={setShowFileSelector}>
         <DialogContent className="rounded-[2.5rem] max-w-[90vw] sm:max-w-md bg-white dark:bg-zinc-900 border-none shadow-2xl">
-          <DialogHeader><DialogTitle className="text-xl font-black">Selecionar Materiais</DialogTitle></DialogHeader>
-          <div className="py-4 space-y-3 max-h-[40vh] overflow-y-auto">
-            {availableDocs.map((doc) => (
-              <button key={doc.id} onClick={() => toggleDoc(doc.id)} className={cn("w-full flex items-center justify-between p-4 rounded-2xl border-2", selectedDocs.includes(doc.id) ? "border-study-primary bg-study-primary/5" : "border-study-light/20 opacity-60")}>
-                <div className="flex items-center gap-3"><FileText size={18} className="text-study-primary" /><span className="text-xs font-bold truncate max-w-[200px]">{doc.name}</span></div>
-                {selectedDocs.includes(doc.id) ? <CheckSquare className="text-study-primary" size={20} /> : <Square className="text-study-medium" size={20} />}
-              </button>
-            ))}
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black flex items-center gap-2">
+              <GraduationCap className="text-study-primary" /> 
+              {pendingAction === 'quiz' ? 'Gerar Simulado' : 'Gerar Resumo'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div className="bg-study-primary/10 p-4 rounded-2xl border border-study-primary/20 flex gap-3">
+              <Info className="text-study-primary shrink-0" size={20} />
+              <p className="text-[11px] font-bold text-study-dark dark:text-zinc-300 leading-tight">
+                {pendingAction === 'quiz' 
+                  ? "Selecione os materiais que a IA deve usar para criar as 10 questões do seu simulado."
+                  : "Selecione os materiais que deseja resumir em tópicos principais."}
+              </p>
+            </div>
+
+            <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+              {availableDocs.map((doc) => (
+                <button 
+                  key={doc.id} 
+                  onClick={() => toggleDoc(doc.id)} 
+                  className={cn(
+                    "w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all", 
+                    selectedDocs.includes(doc.id) 
+                      ? "border-study-primary bg-study-primary/5" 
+                      : "border-study-light/20 opacity-60"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText size={18} className="text-study-primary" />
+                    <span className="text-xs font-bold truncate max-w-[200px]">{doc.name}</span>
+                  </div>
+                  {selectedDocs.includes(doc.id) ? <CheckSquare className="text-study-primary" size={20} /> : <Square className="text-study-medium" size={20} />}
+                </button>
+              ))}
+            </div>
           </div>
-          <DialogFooter><Button onClick={() => handleAction(pendingAction!)} disabled={selectedDocs.length === 0} className="w-full bg-study-primary text-white rounded-xl py-6 font-bold uppercase tracking-widest">Iniciar {pendingAction === 'quiz' ? 'Simulado' : 'Resumo'}</Button></DialogFooter>
+
+          <DialogFooter>
+            <Button 
+              onClick={() => handleAction(pendingAction!)} 
+              disabled={selectedDocs.length === 0 || isLoading} 
+              className="w-full bg-study-primary text-white rounded-xl py-6 font-bold uppercase tracking-widest flex gap-2"
+            >
+              {isLoading ? <Loader2 className="animate-spin" /> : <Zap size={18} />}
+              Iniciar {pendingAction === 'quiz' ? 'Simulado (10 Questões)' : 'Resumo'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
