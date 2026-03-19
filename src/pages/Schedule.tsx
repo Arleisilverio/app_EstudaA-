@@ -77,28 +77,41 @@ const SchedulePage = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.subject_name || !formData.start_time || !formData.end_time) {
       showError("Preencha os campos obrigatórios");
       return;
     }
 
-    setIsDialogOpen(false);
+    if (!user) {
+      showError("Você precisa estar logado");
+      return;
+    }
 
     const saveFn = async () => {
+      // Garantir que o formato de hora seja HH:mm:ss para o Postgres
+      const payload = {
+        ...formData,
+        user_id: user.id,
+        start_time: formData.start_time.length === 5 ? `${formData.start_time}:00` : formData.start_time,
+        end_time: formData.end_time.length === 5 ? `${formData.end_time}:00` : formData.end_time
+      };
+
       const { error } = editingItem
-        ? await supabase.from('schedule').update(formData).eq('id', editingItem.id)
-        : await supabase.from('schedule').insert([{ ...formData, user_id: user?.id }]);
+        ? await supabase.from('schedule').update(payload).eq('id', editingItem.id)
+        : await supabase.from('schedule').insert([payload]);
+      
       if (error) throw error;
     };
 
     toast.promise(saveFn(), {
-      loading: 'Atualizando grade...',
+      loading: 'Salvando na grade...',
       success: () => {
+        setIsDialogOpen(false);
         fetchSchedule();
         return editingItem ? "Grade atualizada!" : "Aula adicionada!";
       },
-      error: 'Erro ao salvar dados'
+      error: (err) => `Erro ao salvar: ${err.message || 'Verifique os dados'}`
     });
   };
 
