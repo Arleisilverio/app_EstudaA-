@@ -36,13 +36,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserRole = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('user_role')
         .eq('id', userId)
         .maybeSingle();
       
-      if (data) {
+      if (data?.user_role) {
         setRole(data.user_role as UserRole);
       }
     } catch (err) {
@@ -51,37 +51,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        
-        if (currentUser) {
-          await fetchUserRole(currentUser.id);
-        }
-      } catch (error) {
-        console.error("Auth init error:", error);
-      } finally {
-        setLoading(false);
+    // Busca inicial da sessão
+    const initAuth = async () => {
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      
+      if (initialSession?.user) {
+        await fetchUserRole(initialSession.user.id);
       }
+      
+      setLoading(false);
     };
 
-    initializeAuth();
+    initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
+    // Escuta mudanças de estado
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
       
-      if (currentUser) {
-        await fetchUserRole(currentUser.id);
+      if (currentSession?.user) {
+        await fetchUserRole(currentSession.user.id);
       } else {
         setRole('student');
       }
-      
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
+
+      // Garante que o loading pare em qualquer evento principal
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
         setLoading(false);
       }
     });
@@ -90,7 +87,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
+    setLoading(true);
     await supabase.auth.signOut();
+    setLoading(false);
   };
 
   const isAdmin = role === 'admin' || (user?.email ? ADMIN_EMAILS.includes(user.email) : false);

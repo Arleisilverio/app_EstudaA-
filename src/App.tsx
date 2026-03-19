@@ -27,6 +27,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading, role, isAdmin } = useAuth();
   const location = useLocation();
   
+  // Se ainda estiver carregando a sessão inicial, mostra o loader
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
@@ -38,15 +39,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  if (!session) return <Navigate to="/login" replace />;
+  // Se não houver sessão, redireciona para o login
+  if (!session) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
-  // Se for professor (e NÃO for admin) e tentar acessar rotas de aluno, manda pro portal
-  const profAllowedPaths = ['/professor-portal', '/settings', '/support', '/terms', '/exams'];
+  // Lógica de permissões por papel
+  const profAllowedPaths = ['/professor-portal', '/settings', '/support', '/terms', '/exams', '/profile'];
+  
   if (role === 'professor' && !isAdmin && !profAllowedPaths.includes(location.pathname)) {
     return <Navigate to="/professor-portal" replace />;
   }
 
-  // Se for aluno e tentar acessar o portal do professor, manda pra home (a menos que seja admin)
   if (role === 'student' && !isAdmin && location.pathname === '/professor-portal') {
     return <Navigate to="/" replace />;
   }
@@ -59,7 +63,7 @@ const AppRoutes = () => (
     <Route path="/login" element={<Login />} />
     <Route path="/reset-password" element={<ResetPassword />} />
     
-    {/* Rotas de Aluno */}
+    {/* Rotas Protegidas */}
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
     <Route path="/study/:subjectId" element={<ProtectedRoute><StudyDashboard /></ProtectedRoute>} />
     <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
@@ -67,12 +71,10 @@ const AppRoutes = () => (
     <Route path="/exams" element={<ProtectedRoute><Exams /></ProtectedRoute>} />
     <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
     <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
-    
-    {/* Rotas Comuns / Professor */}
     <Route path="/professor-portal" element={<ProtectedRoute><ProfessorPortal /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-    <Route path="/terms" element={<Terms />} />
     <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
+    <Route path="/terms" element={<Terms />} />
     
     <Route path="*" element={<NotFound />} />
   </Routes>
@@ -80,7 +82,7 @@ const AppRoutes = () => (
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="light" storageKey="study-ai-theme" attribute="class">
+    <ThemeProvider defaultTheme="dark" storageKey="study-ai-theme" attribute="class">
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
