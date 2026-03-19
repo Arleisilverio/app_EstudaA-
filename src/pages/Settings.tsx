@@ -181,16 +181,6 @@ const SettingsPage = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      showSuccess("Até logo!");
-      navigate("/login");
-    } catch (error) {
-      showError("Erro ao sair");
-    }
-  };
-
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
@@ -373,7 +363,7 @@ const SettingsPage = () => {
               <CardContent className="p-0">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <button className="w-full flex items-center justify-between p-4 px-6 text-red-600 border-b border-red-900/10 hover:bg-red-900/10 transition-colors">
+                    <button className="w-full flex items-center justify-between p-4 px-6 text-red-600 hover:bg-red-900/10 transition-colors">
                       <div className="flex items-center gap-3"><Trash2 size={18} /><span className="font-bold text-sm">Excluir Minha Conta</span></div>
                       <ChevronRight size={18} />
                     </button>
@@ -386,10 +376,6 @@ const SettingsPage = () => {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 px-6 text-study-medium hover:bg-study-light/20 transition-colors">
-                  <div className="flex items-center gap-3"><LogOut size={18} /><span className="font-bold text-sm">Sair do Aplicativo</span></div>
-                  <ChevronRight size={18} />
-                </button>
               </CardContent>
             </Card>
           </section>

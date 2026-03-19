@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GraduationCap, Upload, FileText, Loader2, ShieldCheck, Settings2, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { GraduationCap, Upload, FileText, Loader2, ShieldCheck, Settings2, Trash2, CheckCircle2, Clock, AlertCircle, LogOut } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from 'sonner';
@@ -26,7 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from "@/lib/utils";
 
 const ProfessorPortal = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -91,6 +92,16 @@ const ProfessorPortal = () => {
       });
     }
     setLoading(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Até logo!");
+      navigate('/login');
+    } catch (error) {
+      toast.error("Erro ao sair.");
+    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,7 +179,19 @@ const ProfessorPortal = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative pb-40 px-0 sm:px-4">
-      <Navbar />
+      <div className="relative">
+        <Navbar />
+        <div className="absolute top-3 right-4 z-[60]">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleLogout}
+            className="rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"
+          >
+            <LogOut size={20} />
+          </Button>
+        </div>
+      </div>
       
       <main className="p-4 sm:p-6 space-y-8">
         <div className="flex flex-col items-center gap-4 py-8 bg-study-primary/5 rounded-[2rem] sm:rounded-[2.5rem] border border-study-primary/10 relative overflow-hidden shadow-inner">
