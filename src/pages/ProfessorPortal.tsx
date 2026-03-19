@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GraduationCap, Upload, FileText, Loader2, ShieldCheck, Settings2, Trash2, CheckCircle2, Clock, AlertCircle, LogOut } from 'lucide-react';
+import { GraduationCap, Upload, FileText, Loader2, ShieldCheck, Settings2, Trash2, CheckCircle2, Clock, AlertCircle, LogOut, BookOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,7 @@ const ProfessorPortal = () => {
   const [professorData, setProfessorData] = useState({
     name: '',
     subject_id: '',
+    subject_name: '',
     avatar_url: ''
   });
 
@@ -44,7 +45,6 @@ const ProfessorPortal = () => {
 
   useEffect(() => {
     fetchProfessorData();
-    fetchSubjects();
   }, [user]);
 
   useEffect(() => {
@@ -63,10 +63,6 @@ const ProfessorPortal = () => {
     }
   }, [professorData.subject_id]);
 
-  const fetchSubjects = async () => {
-    await supabase.from('subjects').select('*').order('name');
-  };
-
   const fetchDocuments = async () => {
     const { data } = await supabase
       .from('documents')
@@ -78,9 +74,11 @@ const ProfessorPortal = () => {
 
   const fetchProfessorData = async () => {
     if (!user) return;
+    
+    // Buscamos os dados do professor e o nome da matéria associada
     const { data } = await supabase
       .from('professors')
-      .select('*')
+      .select('*, subjects(name)')
       .eq('user_id', user.id)
       .maybeSingle();
     
@@ -88,6 +86,7 @@ const ProfessorPortal = () => {
       setProfessorData({
         name: data.name || '',
         subject_id: data.subject_id || '',
+        subject_name: (data.subjects as any)?.name || '',
         avatar_url: data.avatar_url || ''
       });
     }
@@ -200,9 +199,17 @@ const ProfessorPortal = () => {
             <AvatarImage src={professorData.avatar_url} className="object-cover" />
             <AvatarFallback className="bg-study-primary text-white text-3xl font-black">{professorData.name?.substring(0, 2).toUpperCase() || 'P'}</AvatarFallback>
           </Avatar>
-          <div className="text-center z-10 px-4">
+          <div className="text-center z-10 px-4 flex flex-col items-center gap-1">
             <h1 className="text-xl sm:text-2xl font-black text-study-dark dark:text-white truncate max-w-[280px]">{professorData.name || "Professor"}</h1>
-            <Badge className="bg-study-primary text-zinc-900 font-bold px-4 py-1 mt-2"><ShieldCheck size={14} className="mr-1" /> MODO PROFESSOR</Badge>
+            
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-xs font-bold text-study-primary uppercase tracking-widest flex items-center gap-1.5">
+                <BookOpen size={14} /> {professorData.subject_name || "Matéria não vinculada"}
+              </p>
+              <Badge className="bg-study-primary/20 text-study-primary border-study-primary/30 font-bold px-4 py-0.5 text-[10px]">
+                <ShieldCheck size={12} className="mr-1" /> MODO PROFESSOR
+              </Badge>
+            </div>
           </div>
         </div>
 
