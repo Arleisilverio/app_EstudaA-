@@ -9,13 +9,18 @@ import { useAuth } from '@/components/AuthProvider';
 import { Bird, ShieldCheck } from 'lucide-react';
 
 const LoginPage = () => {
-  const { session, loading, role } = useAuth();
+  const { session, loading, role, isAdmin } = useAuth();
 
   if (loading) return null;
   
   if (session) {
-    // Redireciona professor para o portal e aluno para a home
+    // Admins sempre vão para a Home do Aluno primeiro
+    if (isAdmin) return <Navigate to="/" replace />;
+    
+    // Professores puros vão para o Portal
     if (role === 'professor') return <Navigate to="/professor-portal" replace />;
+    
+    // Alunos vão para a Home
     return <Navigate to="/" replace />;
   }
 

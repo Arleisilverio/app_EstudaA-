@@ -16,6 +16,8 @@ type AuthContextType = {
   signOut: () => Promise<void>;
 };
 
+const ADMIN_EMAILS = ['arlei85@hotmail.com', 'arlei.se.silverio85@gmail.com'];
+
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
@@ -85,7 +87,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await supabase.auth.signOut();
   };
 
-  const isAdmin = role === 'admin';
+  // Admin é quem tem a role no banco OU o e-mail na lista mestre
+  const isAdmin = role === 'admin' || (user?.email ? ADMIN_EMAILS.includes(user.email) : false);
   const isProfessor = role === 'professor';
 
   return (

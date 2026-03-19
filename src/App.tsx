@@ -23,8 +23,8 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
-  const { session, loading, role } = useAuth();
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { session, loading, role, isAdmin } = useAuth();
   const location = useLocation();
   
   if (loading) {
@@ -40,14 +40,14 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
   
   if (!session) return <Navigate to="/login" replace />;
 
-  // Se for professor e tentar acessar rotas de aluno, manda pro portal (exceto Provas que agora ele gerencia)
+  // Se for professor (e NÃO for admin) e tentar acessar rotas de aluno, manda pro portal
   const profAllowedPaths = ['/professor-portal', '/settings', '/support', '/terms', '/exams'];
-  if (role === 'professor' && !profAllowedPaths.includes(location.pathname)) {
+  if (role === 'professor' && !isAdmin && !profAllowedPaths.includes(location.pathname)) {
     return <Navigate to="/professor-portal" replace />;
   }
 
   // Se for aluno e tentar acessar o portal do professor, manda pra home (a menos que seja admin)
-  if (role === 'student' && location.pathname === '/professor-portal') {
+  if (role === 'student' && !isAdmin && location.pathname === '/professor-portal') {
     return <Navigate to="/" replace />;
   }
   
