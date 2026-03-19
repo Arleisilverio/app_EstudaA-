@@ -27,9 +27,23 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading, role, isAdmin } = useAuth();
   const location = useLocation();
   
-  // Só mostramos o loader se estiver carregando E não tivermos uma sessão em cache
-  // Isso evita o loop de sincronização ao voltar para a aba do app
-  if (loading && !session) {
+  // Se já temos uma sessão, mostramos o conteúdo imediatamente
+  if (session) {
+    const profAllowedPaths = ['/professor-portal', '/settings', '/support', '/terms', '/exams', '/profile'];
+    
+    if (role === 'professor' && !isAdmin && !profAllowedPaths.includes(location.pathname)) {
+      return <Navigate to="/professor-portal" replace />;
+    }
+
+    if (role === 'student' && !isAdmin && location.pathname === '/professor-portal') {
+      return <Navigate to="/" replace />;
+    }
+    
+    return <>{children}</>;
+  }
+
+  // Só mostramos o loader se estiver carregando E realmente não tivermos sessão
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
         <Loader2 className="animate-spin text-study-primary" size={48} />
@@ -40,21 +54,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  if (!session && !loading) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  const profAllowedPaths = ['/professor-portal', '/settings', '/support', '/terms', '/exams', '/profile'];
-  
-  if (role === 'professor' && !isAdmin && !profAllowedPaths.includes(location.pathname)) {
-    return <Navigate to="/professor-portal" replace />;
-  }
-
-  if (role === 'student' && !isAdmin && location.pathname === '/professor-portal') {
-    return <Navigate to="/" replace />;
-  }
-  
-  return <>{children}</>;
+  return <Navigate to="/login" state={{ from: location }} replace />;
 };
 
 const AppRoutes = () => (

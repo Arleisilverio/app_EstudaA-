@@ -53,21 +53,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Busca inicial da sessão de forma imediata
     const initAuth = async () => {
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      
-      if (initialSession) {
-        setSession(initialSession);
-        setUser(initialSession.user);
-        await fetchUserRole(initialSession.user.id);
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (initialSession) {
+          setSession(initialSession);
+          setUser(initialSession.user);
+          await fetchUserRole(initialSession.user.id);
+        }
+      } catch (error) {
+        console.error("Erro na inicialização do Auth:", error);
+      } finally {
+        // Garante que o loading seja falso independente do resultado
+        setLoading(false);
       }
-      
-      // Libera o carregamento inicial
-      setLoading(false);
     };
 
     initAuth();
 
-    // Escuta mudanças de estado sem resetar o 'loading' global para true
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setSession(currentSession);
@@ -80,8 +83,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
         setRole('student');
       }
-      
-      // Garante que o loading inicial seja finalizado
       setLoading(false);
     });
 

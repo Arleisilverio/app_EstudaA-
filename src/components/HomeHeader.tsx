@@ -19,6 +19,8 @@ import { useNavigate } from 'react-router-dom';
 import { addDays, format, parseISO, differenceInDays, startOfDay, setYear, isBefore, addYears } from 'date-fns';
 import { toast } from "sonner";
 
+const CACHE_KEY = 'cached_profile_header';
+
 const HomeHeader = () => {
   const { user, signOut, isAdmin, isProfessor } = useAuth();
   const navigate = useNavigate();
@@ -28,6 +30,13 @@ const HomeHeader = () => {
 
   useEffect(() => {
     if (user) {
+      // Carrega do cache primeiro
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        setProfile(JSON.parse(cached));
+        setLoading(false);
+      }
+      
       fetchData();
       fetchNotifications();
     }
@@ -41,7 +50,10 @@ const HomeHeader = () => {
         .eq('id', user?.id)
         .single();
       
-      if (profileData) setProfile(profileData);
+      if (profileData) {
+        setProfile(profileData);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(profileData));
+      }
     } catch (err) {
       console.error("Erro ao carregar perfil:", err);
     } finally {
@@ -94,6 +106,7 @@ const HomeHeader = () => {
 
   const handleLogout = async () => {
     try {
+      localStorage.removeItem(CACHE_KEY);
       await signOut();
       toast.success("Até logo!");
       navigate('/login');
@@ -104,7 +117,6 @@ const HomeHeader = () => {
 
   return (
     <div className="flex items-center justify-between p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-[1.5rem] sm:rounded-[2rem] shadow-study mx-3 sm:mx-4 mt-4 sm:mt-6 border border-study-light/10 dark:border-white/5 transition-all">
-      {/* Lado Esquerdo: Info do Usuário */}
       <div 
         onClick={() => navigate('/profile')}
         className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 cursor-pointer group"
@@ -112,7 +124,7 @@ const HomeHeader = () => {
         <div className="relative shrink-0">
           <div className="p-0.5 rounded-full bg-gradient-to-tr from-study-primary to-blue-300 dark:to-blue-600 shadow-md">
             <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-white dark:border-zinc-900 shadow-sm transition-transform duration-300 group-hover:scale-105">
-              {loading ? (
+              {loading && !profile ? (
                 <div className="flex items-center justify-center w-full h-full bg-study-light/20">
                   <Loader2 className="animate-spin text-study-primary" size={14} />
                 </div>
@@ -139,7 +151,6 @@ const HomeHeader = () => {
         </div>
       </div>
       
-      {/* Lado Direito: Ações Compactadas */}
       <div className="flex items-center gap-1.5 sm:gap-2 ml-1 sm:ml-2">
         <Popover>
           <PopoverTrigger asChild>
