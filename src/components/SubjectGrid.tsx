@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Scale, FileText, Gavel, ClipboardList, Book, Briefcase, 
-  Plus, Trash2, Pencil, Save, Loader2
+  Plus, Trash2, Pencil, Save, Loader2, RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,8 @@ const ICON_MAP: Record<string, any> = {
   Scale, FileText, Gavel, ClipboardList, Book, Briefcase
 };
 
+const CACHE_KEY = 'cached_subjects';
+
 const SubjectGrid = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
@@ -27,6 +29,12 @@ const SubjectGrid = () => {
   const [formData, setFormData] = useState({ name: '', icon_name: 'Book' });
 
   useEffect(() => {
+    // Carrega do cache primeiro
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      setSubjects(JSON.parse(cached));
+      setLoading(false);
+    }
     fetchSubjects();
   }, []);
 
@@ -36,10 +44,15 @@ const SubjectGrid = () => {
         .from('subjects')
         .select('*')
         .order('name');
+      
       if (error) throw error;
-      setSubjects(data || []);
+      
+      if (data) {
+        setSubjects(data);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      }
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao buscar matérias:", error);
     } finally {
       setLoading(false);
     }
@@ -107,15 +120,20 @@ const SubjectGrid = () => {
           <h3 className="text-xl sm:text-2xl font-bold text-study-dark dark:text-white">Matérias</h3>
         </div>
         
-        {isAdmin && (
-          <Button 
-            onClick={() => handleOpenDialog()}
-            size="sm"
-            className="rounded-full bg-study-primary hover:bg-study-dark text-white gap-2 h-9 text-xs"
-          >
-            <Plus size={14} /> Nova Matéria
+        <div className="flex gap-2">
+          <Button onClick={fetchSubjects} variant="ghost" size="icon" className="rounded-full text-study-medium">
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </Button>
-        )}
+          {isAdmin && (
+            <Button 
+              onClick={() => handleOpenDialog()}
+              size="sm"
+              className="rounded-full bg-study-primary hover:bg-study-dark text-white gap-2 h-9 text-xs"
+            >
+              <Plus size={14} /> Nova
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4">

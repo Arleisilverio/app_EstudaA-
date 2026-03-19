@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Settings2, Trash2, Loader2 } from 'lucide-react';
+import { ArrowRight, Settings2, Trash2, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
@@ -10,6 +10,8 @@ import { useAuth } from '@/components/AuthProvider';
 import AnnouncementManager from './AnnouncementManager';
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
+
+const CACHE_KEY = 'cached_announcements';
 
 const PromoBanner = () => {
   const { isAdmin } = useAuth();
@@ -20,19 +22,35 @@ const PromoBanner = () => {
   const [emblaRef] = useEmblaCarousel({ loop: true }, [Autoplay({ delay: 5000 })]);
 
   useEffect(() => {
+    // Carrega do cache primeiro para ser instantâneo
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      setAnnouncements(JSON.parse(cached));
+      setLoading(false);
+    }
     fetchAnnouncements();
   }, []);
 
   const fetchAnnouncements = async () => {
     try {
+      // Timeout de 5 segundos para não travar a UI
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const { data, error } = await supabase
         .from('announcements')
         .select('*')
         .order('order_index', { ascending: true })
         .limit(10);
       
+      clearTimeout(timeoutId);
+      
       if (error) throw error;
-      setAnnouncements(data || []);
+      
+      if (data) {
+        setAnnouncements(data);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      }
     } catch (error) {
       console.error("Erro mural:", error);
     } finally {
@@ -43,35 +61,17 @@ const PromoBanner = () => {
   const handleNavigation = (link: string | null | undefined, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!link || link === '#' || link === '') return;
     
-    if (!link) return;
-
     let targetLink = link.trim();
-    if (targetLink === '#' || targetLink === '') return;
+    if (targetLink.startsWith('#')) targetLink = targetLink.substring(1).trim();
 
-    // Se o link começa com # mas contém uma URL logo depois (ex: #https://...), removemos o #
-    if (targetLink.startsWith('#') && (targetLink.includes('http') || targetLink.includes('.'))) {
-      targetLink = targetLink.substring(1).trim();
-    }
-
-    // Verifica se é um link externo
     const isExternal = targetLink.startsWith('http') || (targetLink.includes('.') && !targetLink.startsWith('/'));
 
     if (isExternal) {
-      // Garante o protocolo correto
       const url = targetLink.startsWith('http') ? targetLink : `https://${targetLink}`;
-      
-      try {
-        const win = window.open(url, '_blank', 'noopener,noreferrer');
-        if (!win) {
-          window.location.href = url;
-        }
-      } catch (err) {
-        console.error("Erro ao abrir link:", err);
-        toast.error("Não foi possível abrir o link externo.");
-      }
+      window.open(url, '_blank', 'noopener,noreferrer');
     } else {
-      // Navegação interna
       navigate(targetLink);
     }
   };
@@ -90,7 +90,7 @@ const PromoBanner = () => {
     }
   };
 
-  if (loading) return (
+  if (loading && announcements.length === 0) return (
     <div className="mx-4 mt-6 aspect-[16/9] sm:aspect-[21/9] bg-study-light/20 rounded-[2rem] flex items-center justify-center">
       <Loader2 className="animate-spin text-study-primary" />
     </div>
@@ -158,14 +158,6 @@ const PromoBanner = () => {
         >
           <Settings2 size={20} />
         </button>
-      )}
-
-      {announcements.length > 1 && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1 z-20 flex-wrap justify-center max-w-[80%]">
-          {announcements.map((_, i) => (
-            <div key={i} className="w-1.5 h-1.5 bg-white/40 rounded-full" />
-          ))}
-        </div>
       )}
 
       <AnnouncementManager 
