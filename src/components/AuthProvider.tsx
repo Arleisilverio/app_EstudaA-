@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -33,15 +33,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UserRole>('student');
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchUserRole = async (userId: string) => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('user_role')
         .eq('id', userId)
         .maybeSingle();
       
+      if (error) throw error;
       if (data?.user_role) {
         setRole(data.user_role as UserRole);
       }
@@ -51,28 +53,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const checkSession = async () => {
+    // Inicia um timeout de segurança para não travar o usuário na tela de loading
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setLoading(false);
+      console.warn("Auth: Timeout de segurança atingido. Forçando renderização.");
+    }, 4000);
+
     try {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       if (currentSession) {
         setSession(currentSession);
         setUser(currentSession.user);
-        await fetchUserRole(currentSession.user.id);
+        // Busca a role mas não bloqueia o setLoading(false) se demorar
+        fetchUserRole(currentSession.user.id).finally(() => {
+          setLoading(false);
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        });
       } else {
         setSession(null);
         setUser(null);
+        setLoading(false);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
       }
     } catch (error) {
       console.error("Erro ao verificar sessão:", error);
-    } finally {
       setLoading(false);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     }
   };
 
   useEffect(() => {
-    // Inicialização
     checkSession();
 
-    // Ouvinte de mudanças de estado (Login/Logout/Refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (currentSession) {
         setSession(currentSession);
@@ -84,9 +97,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setRole('student');
       }
       setLoading(false);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     });
 
-    // CORREÇÃO CIRÚRGICA: Revalidar quando o app volta do segundo plano
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         checkSession();
@@ -100,12 +113,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
       window.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', checkSession);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    localStorage.clear(); // Limpa cache ao sair
+    localStorage.clear();
+    setSession(null);
+    setUser(null);
+    setRole('student');
   };
 
   const isAdmin = role === 'admin' || (user?.email ? ADMIN_EMAILS.includes(user.email) : false);

@@ -27,8 +27,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading, role, isAdmin } = useAuth();
   const location = useLocation();
   
-  // Se já temos uma sessão ativa, renderizamos o conteúdo imediatamente
-  // Isso evita que o usuário fique preso no loader ao voltar do segundo plano
+  // Se temos sessão, renderizamos. Se não temos e não está carregando, redirecionamos.
   if (session) {
     const profAllowedPaths = ['/professor-portal', '/settings', '/support', '/terms', '/exams', '/profile'];
     
@@ -43,18 +42,27 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <>{children}</>;
   }
 
-  // Só mostramos o loader se estiver carregando E realmente não tivermos sessão detectada
+  // Se ainda está carregando, mostramos o loader
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <Loader2 className="animate-spin text-study-primary" size={48} />
-        <p className="text-sm font-bold text-study-medium uppercase tracking-widest animate-pulse">
-          Sincronizando...
-        </p>
+        <div className="relative">
+          <Loader2 className="animate-spin text-study-primary" size={48} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-2 h-2 bg-study-primary rounded-full animate-ping" />
+          </div>
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-sm font-bold text-study-medium uppercase tracking-widest animate-pulse">
+            Sincronizando...
+          </p>
+          <p className="text-[10px] text-study-medium/50 font-bold uppercase">Verificando credenciais</p>
+        </div>
       </div>
     );
   }
   
+  // Se não está carregando e não tem sessão, vai para o login
   return <Navigate to="/login" state={{ from: location }} replace />;
 };
 
