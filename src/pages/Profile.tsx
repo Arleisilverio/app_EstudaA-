@@ -29,8 +29,10 @@ const MONTHS = [
   { val: "11", label: "Novembro" }, { val: "12", label: "Dezembro" }
 ];
 
+const CACHE_KEY = 'cached_full_profile';
+
 const ProfilePage = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -48,45 +50,76 @@ const ProfilePage = () => {
   });
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-      fetchQuizHistory();
-    }
-  }, [user]);
-
-  const fetchProfile = async () => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', user?.id).single();
-    if (data) {
-      setProfile({
-        name: data.name || "",
-        course: data.course || "",
-        period: data.period || "",
-        completion_year: data.completion_year || "",
-        avatar_url: data.avatar_url || ""
-      });
+    // Carrega do cache imediatamente para evitar tela branca/loader
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached);
+      setProfile(data);
       if (data.birthday) {
         const [_, month, day] = data.birthday.split('-');
         setBirthDay(day);
         setBirthMonth(month);
       }
+      setLoading(false);
     }
-    setLoading(false);
+
+    if (user) {
+      fetchProfile();
+      fetchQuizHistory();
+    } else if (!authLoading && !user) {
+      // Se terminou de carregar o auth e não tem usuário, libera o loader
+      setLoading(false);
+    }
+  }, [user, authLoading]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', user?.id).single();
+      
+      if (error) throw error;
+
+      if (data) {
+        const profileData = {
+          name: data.name || "",
+          course: data.course || "",
+          period: data.period || "",
+          completion_year: data.completion_year || "",
+          avatar_url: data.avatar_url || ""
+        };
+        setProfile(profileData);
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ...profileData, birthday: data.birthday }));
+        
+        if (data.birthday) {
+          const [_, month, day] = data.birthday.split('-');
+          setBirthDay(day);
+          setBirthMonth(month);
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao buscar perfil:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchQuizHistory = async () => {
-    const { data } = await supabase
-      .from('quiz_history')
-      .select('*')
-      .eq('user_id', user?.id)
-      .order('created_at', { ascending: true });
+    try {
+      const { data } = await supabase
+        .from('quiz_history')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: true });
 
-    if (data) {
-      setQuizHistory([...data].reverse());
-      const formattedData = data.slice(-10).map((q: any) => ({
-        data: format(new Date(q.created_at), 'dd/MM'),
-        score: (q.score / q.total_questions) * 10,
-      }));
-      setChartData(formattedData);
+      if (data) {
+        setQuizHistory([...data].reverse());
+        const formattedData = data.slice(-10).map((q: any) => ({
+          data: format(new Date(q.created_at), 'dd/MM'),
+          score: (q.score / q.total_questions) * 10,
+        }));
+        setChartData(formattedData);
+      }
+    } catch (err) {
+      console.error("Erro ao buscar histórico:", err);
     }
   };
 
@@ -97,14 +130,14 @@ const ProfilePage = () => {
       const file = event.target.files?.[0];
       if (!file) return;
       const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('announcements').upload(filePath, file, { upsert: true, cacheControl: '3600' });
+      const fileName = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('announcements').upload(fileName, file, { upsert: true, cacheControl: '3600' });
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from('announcements').getPublicUrl(filePath);
+      const { data: { publicUrl } } = supabase.storage.from('announcements').getPublicUrl(fileName);
       setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
       await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
       toast.success("Foto de perfil atualizada!");
-      setTimeout(() => fetchProfile(), 500);
+      fetchProfile();
     } catch (error: any) {
       toast.error("Erro ao carregar imagem");
     } finally {
@@ -122,12 +155,21 @@ const ProfilePage = () => {
       birthday: birthdayString,
       updated_at: new Date().toISOString() 
     });
-    if (!error) toast.success("Perfil atualizado!");
-    else toast.error("Erro ao salvar perfil");
+    if (!error) {
+      toast.success("Perfil atualizado!");
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ...profile, birthday: birthdayString }));
+    } else {
+      toast.error("Erro ao salvar perfil");
+    }
     setSaving(false);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-study-primary" size={48} /></div>;
+  if (loading && !profile.name) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+      <Loader2 className="animate-spin text-study-primary" size={48} />
+      <p className="text-xs font-bold text-study-medium uppercase tracking-widest animate-pulse">Carregando Perfil...</p>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative pb-40">
