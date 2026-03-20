@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Save, User, Loader2, History, Award, TrendingUp, Settings2, ChevronLeft } from 'lucide-react';
+import { Camera, Save, User, Loader2, History, Award, TrendingUp, Settings2, ChevronLeft, LogOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +32,7 @@ const MONTHS = [
 const CACHE_KEY = 'cached_full_profile';
 
 const ProfilePage = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,7 +50,6 @@ const ProfilePage = () => {
   });
 
   useEffect(() => {
-    // Carrega do cache imediatamente para evitar tela branca/loader
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       const data = JSON.parse(cached);
@@ -67,7 +66,6 @@ const ProfilePage = () => {
       fetchProfile();
       fetchQuizHistory();
     } else if (!authLoading && !user) {
-      // Se terminou de carregar o auth e não tem usuário, libera o loader
       setLoading(false);
     }
   }, [user, authLoading]);
@@ -75,9 +73,7 @@ const ProfilePage = () => {
   const fetchProfile = async () => {
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', user?.id).single();
-      
       if (error) throw error;
-
       if (data) {
         const profileData = {
           name: data.name || "",
@@ -88,7 +84,6 @@ const ProfilePage = () => {
         };
         setProfile(profileData);
         localStorage.setItem(CACHE_KEY, JSON.stringify({ ...profileData, birthday: data.birthday }));
-        
         if (data.birthday) {
           const [_, month, day] = data.birthday.split('-');
           setBirthDay(day);
@@ -109,7 +104,6 @@ const ProfilePage = () => {
         .select('*')
         .eq('user_id', user?.id)
         .order('created_at', { ascending: true });
-
       if (data) {
         setQuizHistory([...data].reverse());
         const formattedData = data.slice(-10).map((q: any) => ({
@@ -162,6 +156,16 @@ const ProfilePage = () => {
       toast.error("Erro ao salvar perfil");
     }
     setSaving(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Sessão encerrada.");
+      navigate('/login');
+    } catch (error) {
+      toast.error("Erro ao sair.");
+    }
   };
 
   if (loading && !profile.name) return (
@@ -293,6 +297,16 @@ const ProfilePage = () => {
                 </Card>
               ))
             )}
+          </div>
+
+          <div className="pt-4">
+            <Button 
+              onClick={handleLogout} 
+              variant="outline" 
+              className="w-full border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white rounded-2xl py-6 font-bold flex gap-2"
+            >
+              <LogOut size={18} /> Sair da Conta
+            </Button>
           </div>
         </div>
       </div>

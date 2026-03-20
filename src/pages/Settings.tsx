@@ -39,7 +39,6 @@ const SettingsPage = () => {
   const [loadingEmails, setLoadingEmails] = useState(false);
   const [isSavingEmail, setIsSavingEmail] = useState(false);
   
-  // Estados para o Perfil do Professor
   const [subjects, setSubjects] = useState<any[]>([]);
   const [savingProf, setSavingProf] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -181,6 +180,16 @@ const SettingsPage = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Até logo!");
+      navigate('/login');
+    } catch (error) {
+      toast.error("Erro ao sair.");
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
@@ -226,13 +235,11 @@ const SettingsPage = () => {
         </div>
 
         <div className="space-y-10">
-          {/* SEÇÃO DO PERFIL DOCENTE (Visível apenas para professores/admins) */}
           {(isProfessor || isAdmin) && (
             <section className="space-y-3">
               <h2 className="text-xs font-bold text-study-primary uppercase tracking-widest ml-1">Perfil do Professor</h2>
               <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
                 <CardContent className="pt-6 space-y-6">
-                  {/* Foto do Professor */}
                   <div className="flex flex-col items-center gap-3">
                     <div className="relative">
                       <Avatar className="h-20 w-20 border-2 border-study-primary/20">
@@ -277,7 +284,6 @@ const SettingsPage = () => {
                 </CardContent>
               </Card>
 
-              {/* Link rápido para o Portal */}
               <Button 
                 onClick={() => navigate('/professor-portal')}
                 variant="outline"
@@ -292,7 +298,6 @@ const SettingsPage = () => {
             </section>
           )}
 
-          {/* SEÇÃO DE ADMINISTRAÇÃO */}
           {isAdmin && (
             <section className="space-y-3">
               <div className="flex items-center justify-between ml-1">
@@ -352,6 +357,21 @@ const SettingsPage = () => {
                     <span className="font-bold text-zinc-200 text-sm">Suporte e Desenvolvedor</span>
                   </div>
                   <ChevronRight size={18} className="text-study-medium" />
+                </button>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Sessão</h2>
+            <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
+              <CardContent className="p-0">
+                <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 px-6 hover:bg-study-light/10 transition-colors text-study-primary">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-study-primary/10 p-2 rounded-xl"><LogOut size={18} /></div>
+                    <span className="font-bold text-sm">Sair da Conta</span>
+                  </div>
+                  <ChevronRight size={18} />
                 </button>
               </CardContent>
             </Card>

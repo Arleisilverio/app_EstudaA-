@@ -30,7 +30,6 @@ const HomeHeader = () => {
 
   useEffect(() => {
     if (user) {
-      // Carrega do cache primeiro
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         setProfile(JSON.parse(cached));
@@ -177,7 +176,7 @@ const HomeHeader = () => {
               Menu da Conta
             </DropdownMenuLabel>
             <DropdownMenuItem 
-              onClick={() => navigate('/profile')}
+              onSelect={() => navigate('/profile')}
               className="rounded-xl flex items-center gap-3 p-3 cursor-pointer hover:bg-study-primary/10 group"
             >
               <div className="bg-study-primary/10 p-2 rounded-lg text-study-primary group-hover:bg-study-primary group-hover:text-white transition-colors">
@@ -190,7 +189,7 @@ const HomeHeader = () => {
             </DropdownMenuItem>
             
             <DropdownMenuItem 
-              onClick={() => navigate('/settings')}
+              onSelect={() => navigate('/settings')}
               className="rounded-xl flex items-center gap-3 p-3 cursor-pointer hover:bg-study-primary/10 group mt-1"
             >
               <div className="bg-study-light/20 p-2 rounded-lg text-study-medium group-hover:bg-study-primary group-hover:text-white transition-colors">
@@ -205,7 +204,7 @@ const HomeHeader = () => {
             <DropdownMenuSeparator className="my-2 bg-study-light/10" />
             
             <DropdownMenuItem 
-              onClick={handleLogout}
+              onSelect={handleLogout}
               className="rounded-xl flex items-center gap-3 p-3 cursor-pointer hover:bg-red-500/10 group text-red-500"
             >
               <div className="bg-red-500/10 p-2 rounded-lg group-hover:bg-red-500 group-hover:text-white transition-colors">
