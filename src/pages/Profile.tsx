@@ -269,7 +269,7 @@ const ProfilePage = () => {
                 <div className="space-y-1"><Label className="text-[10px] font-bold uppercase ml-1">Período</Label><Input value={profile.period} onChange={e => setProfile({...profile, period: e.target.value})} placeholder="Ex: 5º Período" className="rounded-xl" /></div>
                 <div className="space-y-1"><Label className="text-[10px] font-bold uppercase ml-1">Ano Conclusão</Label><Input value={profile.completion_year} onChange={e => setProfile({...profile, completion_year: e.target.value})} placeholder="Ex: 2026" className="rounded-xl" /></div>
               </div>
-              <Button onClick={handleSave} disabled={saving} className="w-full bg-study-primary rounded-xl mt-2 font-bold py-6">{saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />} Salvar Dados</Button>
+              <Button onClick={handleSave} disabled={saving} className="w-full bg-study-primary rounded-xl mt-2 font-bold py-6">{saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />} Salvar Dados Perfil</Button>
             </CardContent>
           </Card>
 
