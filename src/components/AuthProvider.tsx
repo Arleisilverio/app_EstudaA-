@@ -50,35 +50,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  useEffect(() => {
-    // Busca inicial da sessão de forma imediata
-    const initAuth = async () => {
-      try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
-        if (initialSession) {
-          setSession(initialSession);
-          setUser(initialSession.user);
-          await fetchUserRole(initialSession.user.id);
-        }
-      } catch (error) {
-        console.error("Erro na inicialização do Auth:", error);
-      } finally {
-        // Garante que o loading seja falso independente do resultado
-        setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+  const checkSession = async () => {
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (currentSession) {
         setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        if (currentSession?.user) {
-          await fetchUserRole(currentSession.user.id);
-        }
-      } else if (event === 'SIGNED_OUT') {
+        setUser(currentSession.user);
+        await fetchUserRole(currentSession.user.id);
+      } else {
+        setSession(null);
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Erro ao verificar sessão:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Inicialização
+    checkSession();
+
+    // Ouvinte de mudanças de estado (Login/Logout/Refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if (currentSession) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+        await fetchUserRole(currentSession.user.id);
+      } else {
         setSession(null);
         setUser(null);
         setRole('student');
@@ -86,11 +86,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // CORREÇÃO CIRÚRGICA: Revalidar quando o app volta do segundo plano
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkSession();
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', checkSession);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', checkSession);
+    };
   }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    localStorage.clear(); // Limpa cache ao sair
   };
 
   const isAdmin = role === 'admin' || (user?.email ? ADMIN_EMAILS.includes(user.email) : false);
