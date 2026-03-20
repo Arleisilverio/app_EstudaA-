@@ -13,23 +13,36 @@ serve(async (req) => {
   }
 
   const functionName = "chat-with-gemini";
-  console.log(`[${functionName}] Recebendo nova requisição`);
-
+  
   try {
-    const { subjectId, query, action, documentIds } = await req.json()
-    
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!OPENAI_API_KEY) {
-      return new Response(JSON.stringify({ error: "Chave de API não configurada." }), { 
-        status: 500, 
+    // SEGURANÇA: Verificar se o cabeçalho de autorização existe
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), { 
+        status: 401, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+    // SEGURANÇA: Validar o token do usuário antes de processar qualquer dado
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      console.error(`[${functionName}] Token inválido ou expirado`);
+      return new Response(JSON.stringify({ error: "Sessão inválida" }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    const { subjectId, query, action, documentIds } = await req.json();
 
     // 1. Buscar metadados dos documentos (filtrando por IDs se fornecidos)
     let queryBuilder = supabase
@@ -42,10 +55,9 @@ serve(async (req) => {
     }
 
     const { data: documents, error: docsError } = await queryBuilder;
-
     if (docsError) throw docsError;
 
-    // 2. Baixar conteúdos
+    // 2. Baixar conteúdos de forma segura
     let contextText = "";
     if (documents && documents.length > 0) {
       const downloadPromises = documents.map(async (doc) => {
@@ -69,32 +81,9 @@ serve(async (req) => {
     IMPORTANTE: Sempre que responder, utilize as informações das fontes e mencione-as se necessário.`;
     
     if (action === 'quiz') {
-      systemPrompt += `
-      TAREFA: Gere um SIMULADO DE NÍVEL UNIVERSITÁRIO ALTAMENTE DESAFIADOR com EXATAMENTE 10 QUESTÕES em formato JSON puro.
-      - As perguntas devem exigir análise crítica, interpretação e compreensão profunda do material, não apenas memorização simples.
-      - DISTRIBUIÇÃO DE RESPOSTAS: Você DEVE variar a posição da resposta correta de forma aleatória entre as opções A, B, C e D (índices 0, 1, 2, 3). 
-      - É ESTRITAMENTE PROIBIDO concentrar a maioria das respostas corretas na mesma letra (como a letra A). Garanta uma distribuição equilibrada.
-      - Baseie as perguntas estritamente no conteúdo dos arquivos fornecidos.
-      - Não gere menos que 10 questões sob nenhuma circunstância.
-      
-      ESTRUTURA JSON:
-      {
-        "questions": [
-          {
-            "id": 1,
-            "question": "Pergunta complexa de nível acadêmico...",
-            "options": ["Opção A", "Opção B", "Opção C", "Opção D"],
-            "correctIndex": 2,
-            "explanation": "Explicação pedagógica detalhada justificando a resposta correta com base na fonte."
-          }
-        ]
-      }`;
+      systemPrompt += `\nTAREFA: Gere um SIMULADO DE NÍVEL UNIVERSITÁRIO com 10 QUESTÕES em formato JSON puro.`;
     } else if (action === 'summary') {
-      systemPrompt += `
-      TAREFA: Gere um RESUMO PEDAGÓGICO ESTRUTURADO.
-      Mencione quais documentos foram resumidos no início ou fim do texto.`;
-    } else {
-      systemPrompt += `\nResponda de forma direta e acadêmica. Se a informação não estiver nos documentos, informe que não encontrou nos arquivos de aula mas responda com base em conhecimentos gerais (avisando que é conhecimento extra).`;
+      systemPrompt += `\nTAREFA: Gere um RESUMO PEDAGÓGICO ESTRUTURADO.`;
     }
 
     // 4. Chamada OpenAI
@@ -107,17 +96,17 @@ serve(async (req) => {
         model: model,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "system", content: `CONTEXTO DAS FONTES DISPONÍVEIS:\n${contextText || "Nenhum arquivo enviado ainda. Use conhecimentos gerais."}` },
+          { role: "system", content: `CONTEXTO DAS FONTES:\n${contextText || "Nenhum arquivo enviado ainda."}` },
           { role: "user", content: query }
         ],
-        temperature: 0.7 // Aumentado levemente para maior variabilidade na distribuição de respostas
+        temperature: 0.7
       })
-    })
+    });
 
     if (!response.ok) throw new Error("Erro na API da OpenAI");
 
-    const result = await response.json()
-    let finalContent = result.choices?.[0]?.message?.content
+    const result = await response.json();
+    let finalContent = result.choices?.[0]?.message?.content;
 
     if (action === 'quiz') {
       finalContent = finalContent.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -128,13 +117,13 @@ serve(async (req) => {
       isQuiz: action === 'quiz',
       isSummary: action === 'summary',
       sources: documents?.map(d => d.name) || []
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (err) {
     console.error(`[${functionName}] Erro:`, err);
     return new Response(JSON.stringify({ error: err.message }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    });
   }
 })
