@@ -19,7 +19,11 @@ const ICON_MAP: Record<string, any> = {
 
 const CACHE_KEY = 'cached_subjects';
 
-const SubjectGrid = () => {
+interface SubjectGridProps {
+  filterId?: string;
+}
+
+const SubjectGrid = ({ filterId }: SubjectGridProps) => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -30,25 +34,28 @@ const SubjectGrid = () => {
 
   useEffect(() => {
     const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
+    if (cached && !filterId) {
       setSubjects(JSON.parse(cached));
       setLoading(false);
     }
     fetchSubjects();
-  }, []);
+  }, [filterId]);
 
   const fetchSubjects = async () => {
     try {
-      const { data, error } = await supabase
-        .from('subjects')
-        .select('*')
-        .order('name');
+      let query = supabase.from('subjects').select('*').order('name');
+      
+      if (filterId) {
+        query = query.eq('id', filterId);
+      }
+
+      const { data, error } = await query;
       
       if (error) throw error;
       
       if (data) {
         setSubjects(data);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        if (!filterId) localStorage.setItem(CACHE_KEY, JSON.stringify(data));
       }
     } catch (error) {
       console.error("Erro ao buscar matérias:", error);
@@ -121,14 +128,16 @@ const SubjectGrid = () => {
           <div className="bg-study-primary/10 p-2 rounded-lg">
             <Book className="text-study-primary" size={20} />
           </div>
-          <h3 className="text-xl sm:text-2xl font-bold text-study-dark dark:text-white">Matérias</h3>
+          <h3 className="text-xl sm:text-2xl font-bold text-study-dark dark:text-white">
+            {filterId ? "Minha Matéria" : "Matérias"}
+          </h3>
         </div>
         
         <div className="flex gap-2">
           <Button onClick={fetchSubjects} variant="ghost" size="icon" className="rounded-full text-study-medium">
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </Button>
-          {isAdmin && (
+          {isAdmin && !filterId && (
             <Button 
               onClick={() => handleOpenDialog()}
               size="sm"
