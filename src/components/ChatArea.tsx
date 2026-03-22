@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, GraduationCap, Loader2, Info, Zap, X, BookOpen, Menu, CheckSquare, Square, FileText, User, AlertTriangle } from 'lucide-react';
+import { Send, Sparkles, GraduationCap, Loader2, Info, Zap, X, BookOpen, Menu, CheckSquare, Square, FileText, User, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,13 +54,6 @@ const ChatArea = () => {
 
   useEffect(() => {
     if (subjectId) {
-      // Carrega do cache para o seletor de arquivos ser instantâneo
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const docs = JSON.parse(cached);
-        setAvailableDocs(docs);
-        setSelectedDocs(docs.map((d: any) => d.id));
-      }
       fetchDocuments();
     }
   }, [subjectId]);
@@ -76,7 +69,6 @@ const ChatArea = () => {
       if (data) {
         setAvailableDocs(data);
         setSelectedDocs(data.map(d => d.id));
-        // Atualiza o cache compartilhado com o FileSidebar
         localStorage.setItem(CACHE_KEY, JSON.stringify(data));
       }
     } catch (err) {
@@ -84,42 +76,9 @@ const ChatArea = () => {
     }
   };
 
-  const checkQuizLimit = async () => {
-    if (isAdmin || isProfessor) return true;
-
-    const today = new Date().toISOString().split('T')[0];
-    const { count, error } = await supabase
-      .from('quiz_history')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user?.id)
-      .eq('subject_id', subjectId)
-      .gte('created_at', today);
-
-    if (error) return true;
-    return (count || 0) < 2;
-  };
-
-  const toggleDoc = (id: string) => {
-    setSelectedDocs(prev => 
-      prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
-    );
-  };
-
   const handleAction = async (actionType: 'chat' | 'quiz' | 'summary', customQuery?: string) => {
     const textToSearch = customQuery || query;
     if (!textToSearch.trim() && actionType === 'chat') return;
-
-    if (actionType === 'quiz') {
-      const canCreate = await checkQuizLimit();
-      if (!canCreate) {
-        toast.error("Limite atingido!", {
-          description: "Política de Uso: Você pode gerar no máximo 2 simulados por matéria ao dia. Tente novamente amanhã!",
-          duration: 5000
-        });
-        setShowFileSelector(false);
-        return;
-      }
-    }
 
     if (actionType !== 'quiz') {
       setMessages(prev => [...prev, { role: 'user', text: textToSearch }]);
@@ -165,15 +124,6 @@ const ChatArea = () => {
     }
   };
 
-  const startActionWithFiles = (type: 'quiz' | 'summary') => {
-    if (availableDocs.length === 0) {
-      toast.error("Nenhum material disponível para esta matéria ainda.");
-      return;
-    }
-    setPendingAction(type);
-    setShowFileSelector(true);
-  };
-
   return (
     <div className="flex flex-col min-h-full w-full max-w-3xl mx-auto relative px-4">
       <div className="flex items-center justify-between mb-6">
@@ -182,7 +132,12 @@ const ChatArea = () => {
             Professor Virtual
             <Sparkles className="text-study-primary" size={20} />
           </h2>
-          <p className="text-study-medium dark:text-zinc-400 text-xs font-medium uppercase tracking-widest">IA Baseada no seu Material</p>
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck size={12} className="text-green-500" />
+            <p className="text-[10px] text-study-medium dark:text-zinc-400 font-black uppercase tracking-widest">
+              Base de Conhecimento Oficial
+            </p>
+          </div>
         </div>
 
         {!currentQuiz && !isLoading && (
@@ -193,11 +148,11 @@ const ChatArea = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 rounded-2xl bg-white dark:bg-zinc-900 p-2 shadow-2xl">
-              <DropdownMenuItem onClick={() => startActionWithFiles('quiz')} className="rounded-xl flex items-center gap-3 p-3 cursor-pointer">
+              <DropdownMenuItem onClick={() => { setPendingAction('quiz'); setShowFileSelector(true); }} className="rounded-xl flex items-center gap-3 p-3 cursor-pointer">
                 <div className="bg-study-primary p-2 rounded-lg text-white"><GraduationCap size={16} /></div>
-                <div className="flex flex-col"><span className="font-bold text-sm">Gerar Simulado</span><span className="text-[10px] text-study-medium uppercase">Validar Conhecimento</span></div>
+                <div className="flex flex-col"><span className="font-bold text-sm">Gerar Simulado</span><span className="text-[10px] text-study-medium uppercase">10 Questões do Material</span></div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => startActionWithFiles('summary')} className="rounded-xl flex items-center gap-3 p-3 cursor-pointer mt-1">
+              <DropdownMenuItem onClick={() => { setPendingAction('summary'); setShowFileSelector(true); }} className="rounded-xl flex items-center gap-3 p-3 cursor-pointer mt-1">
                 <div className="bg-blue-500 p-2 rounded-lg text-white"><BookOpen size={16} /></div>
                 <div className="flex flex-col"><span className="font-bold text-sm">Gerar Resumo</span><span className="text-[10px] text-study-medium uppercase">Tópicos Principais</span></div>
               </DropdownMenuItem>
@@ -207,14 +162,26 @@ const ChatArea = () => {
       </div>
 
       <div className="flex-1 flex flex-col gap-4 pb-32">
+        {messages.length === 0 && !isLoading && (
+          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-60">
+            <div className="bg-study-primary/10 p-6 rounded-[2.5rem]">
+              <GraduationCap size={48} className="text-study-primary" />
+            </div>
+            <div className="max-w-xs">
+              <p className="text-sm font-bold text-study-dark dark:text-white">Olá! Sou sua IA de estudos.</p>
+              <p className="text-xs text-study-medium mt-1">Minhas respostas são baseadas exclusivamente nos materiais que seu professor disponibilizou aqui.</p>
+            </div>
+          </div>
+        )}
+
         <AnimatePresence>
           {messages.map((msg, idx) => (
             <motion.div
               key={idx}
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
               className={cn(
-                "max-w-[85%] flex flex-col gap-1",
+                "max-w-[90%] flex flex-col gap-1",
                 msg.role === 'user' ? "self-end items-end" : "self-start items-start"
               )}
             >
@@ -224,12 +191,6 @@ const ChatArea = () => {
                   ? "bg-study-primary text-zinc-900 rounded-tr-none font-medium" 
                   : "bg-white dark:bg-zinc-900 text-study-dark dark:text-zinc-100 rounded-tl-none border border-study-light/10"
               )}>
-                {msg.isSummary && (
-                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-study-light/20">
-                    <BookOpen size={16} className="text-study-primary" />
-                    <span className="text-xs font-black uppercase tracking-widest text-study-primary">Resumo do Material</span>
-                  </div>
-                )}
                 <div className="prose prose-sm dark:prose-invert max-w-none">
                   {msg.text.split('\n').map((line, i) => (
                     <p key={i} className="mb-2 last:mb-0">{line}</p>
@@ -237,14 +198,14 @@ const ChatArea = () => {
                 </div>
                 
                 {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
-                  <div className="mt-4 pt-3 border-t border-study-light/20 flex flex-col gap-2">
-                    <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-study-medium tracking-tighter">
-                      <FileText size={12} className="text-study-primary" />
-                      Extraído de:
+                  <div className="mt-4 pt-3 border-t border-study-light/20">
+                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-study-medium tracking-tighter mb-2">
+                      <FileText size={10} className="text-study-primary" />
+                      Baseado em:
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {msg.sources.map((s, i) => (
-                        <span key={i} className="text-[9px] font-bold uppercase bg-study-light/20 dark:bg-zinc-800 px-2.5 py-1 rounded-lg text-study-medium border border-study-light/10">
+                        <span key={i} className="text-[8px] font-bold uppercase bg-study-light/20 dark:bg-zinc-800 px-2 py-0.5 rounded-md text-study-medium">
                           {s}
                         </span>
                       ))}
@@ -257,21 +218,9 @@ const ChatArea = () => {
 
           {isLoading && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="self-start flex items-center gap-3 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-study-light/10 shadow-sm">
-              <div className="flex gap-1">
-                <span className="w-1.5 h-1.5 bg-study-primary rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-                <span className="w-1.5 h-1.5 bg-study-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                <span className="w-1.5 h-1.5 bg-study-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-              </div>
-              <span className="text-[10px] font-black uppercase text-study-medium tracking-widest">IA Analisando...</span>
+              <Loader2 className="animate-spin text-study-primary" size={16} />
+              <span className="text-[10px] font-black uppercase text-study-medium tracking-widest">Consultando Material...</span>
             </motion.div>
-          )}
-
-          {currentQuiz && (
-            <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm p-4 overflow-y-auto flex flex-col items-center">
-              <div className="w-full max-w-xl py-10">
-                <QuizComponent questions={currentQuiz} onClose={() => setCurrentQuiz(null)} subjectId={subjectId!} />
-              </div>
-            </div>
           )}
         </AnimatePresence>
         <div ref={bottomRef} className="h-4" />
@@ -281,7 +230,7 @@ const ChatArea = () => {
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent z-40">
           <form onSubmit={(e) => { e.preventDefault(); handleAction('chat'); }} className="max-w-3xl mx-auto relative">
             <Input
-              placeholder="Pergunte ao Professor Virtual..."
+              placeholder="Tire sua dúvida sobre o material..."
               className="pl-4 pr-14 py-7 rounded-[2rem] border-none shadow-2xl bg-white dark:bg-zinc-900 text-sm focus-visible:ring-2 focus-visible:ring-study-primary/20 transition-all dark:text-white"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -299,6 +248,14 @@ const ChatArea = () => {
         </div>
       )}
 
+      {currentQuiz && (
+        <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm p-4 overflow-y-auto flex flex-col items-center">
+          <div className="w-full max-w-xl py-10">
+            <QuizComponent questions={currentQuiz} onClose={() => setCurrentQuiz(null)} subjectId={subjectId!} />
+          </div>
+        </div>
+      )}
+
       <Dialog open={showFileSelector} onOpenChange={setShowFileSelector}>
         <DialogContent className="rounded-[2.5rem] max-w-[90vw] sm:max-w-md bg-white dark:bg-zinc-900 border-none shadow-2xl">
           <DialogHeader>
@@ -313,8 +270,8 @@ const ChatArea = () => {
               <Info className="text-study-primary shrink-0" size={20} />
               <p className="text-[11px] font-bold text-study-dark dark:text-zinc-300 leading-tight">
                 {pendingAction === 'quiz' 
-                  ? "Selecione os materiais que a IA deve usar para criar as 10 questões do seu simulado."
-                  : "Selecione os materiais que deseja resumir em tópicos principais."}
+                  ? "A IA criará 10 questões baseadas nos materiais selecionados abaixo."
+                  : "A IA criará um resumo estruturado dos materiais selecionados."}
               </p>
             </div>
 
@@ -322,7 +279,7 @@ const ChatArea = () => {
               {availableDocs.map((doc) => (
                 <button 
                   key={doc.id} 
-                  onClick={() => toggleDoc(doc.id)} 
+                  onClick={() => setSelectedDocs(prev => prev.includes(doc.id) ? prev.filter(id => id !== doc.id) : [...prev, doc.id])} 
                   className={cn(
                     "w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all", 
                     selectedDocs.includes(doc.id) 
@@ -347,7 +304,7 @@ const ChatArea = () => {
               className="w-full bg-study-primary text-white rounded-xl py-6 font-bold uppercase tracking-widest flex gap-2"
             >
               {isLoading ? <Loader2 className="animate-spin" /> : <Zap size={18} />}
-              Iniciar {pendingAction === 'quiz' ? 'Simulado (10 Questões)' : 'Resumo'}
+              Iniciar {pendingAction === 'quiz' ? 'Simulado' : 'Resumo'}
             </Button>
           </DialogFooter>
         </DialogContent>
