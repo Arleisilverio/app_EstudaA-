@@ -166,7 +166,7 @@ const ProfilePage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative pb-40">
+    <div className="min-h-screen bg-background flex flex-col max-w-md md:max-w-5xl lg:max-w-6xl mx-auto relative pb-40">
       <div className="p-6">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -211,82 +211,90 @@ const ProfilePage = () => {
           <p className="mt-4 text-study-medium font-bold text-xs uppercase tracking-widest">{user?.email}</p>
         </div>
 
-        <div className="space-y-8">
-          {chartData.length > 1 && (
-            <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
-              <CardHeader className="bg-study-primary/10 pb-2">
-                <CardTitle className="text-xs font-black text-study-primary uppercase tracking-widest flex items-center gap-2">
-                  <TrendingUp size={16} /> Evolução de Notas
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Coluna Esquerda: Informações */}
+          <div className="space-y-8">
+            <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem]">
+              <CardHeader className="bg-study-light/20 pb-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <User size={18} className="text-study-primary" /> Informações Acadêmicas
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-6 h-[200px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" />
-                    <XAxis dataKey="data" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--study-medium))' }} />
-                    <YAxis domain={[0, 10]} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--study-medium))' }} />
-                    <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} labelStyle={{ fontWeight: 'bold' }} />
-                    <Line type="monotone" dataKey="score" stroke="hsl(var(--study-primary))" strokeWidth={3} dot={{ r: 4, fill: 'hsl(var(--study-primary))', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
+              <CardContent className="pt-6 space-y-4">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase ml-1">Nome Completo</Label>
+                  <Input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="rounded-xl" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase ml-1">Dia e Mês do Aniversário</Label>
+                  <div className="flex gap-2">
+                    <div className="flex-1"><Select value={birthDay} onValueChange={setBirthDay}><SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="Dia" /></SelectTrigger><SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="flex-[2]"><Select value={birthMonth} onValueChange={setBirthMonth}><SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="Mês" /></SelectTrigger><SelectContent>{MONTHS.map(m => <SelectItem key={m.val} value={m.val}>{m.label}</SelectItem>)}</SelectContent></Select></div>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase ml-1">Curso</Label>
+                  <Input value={profile.course} onChange={e => setProfile({...profile, course: e.target.value})} className="rounded-xl" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1"><Label className="text-[10px] font-bold uppercase ml-1">Período</Label><Input value={profile.period} onChange={e => setProfile({...profile, period: e.target.value})} placeholder="Ex: 5º Período" className="rounded-xl" /></div>
+                  <div className="space-y-1"><Label className="text-[10px] font-bold uppercase ml-1">Ano Conclusão</Label><Input value={profile.completion_year} onChange={e => setProfile({...profile, completion_year: e.target.value})} placeholder="Ex: 2026" className="rounded-xl" /></div>
+                </div>
+                <Button onClick={handleSave} disabled={saving} className="w-full bg-study-primary rounded-xl mt-2 font-bold py-6">{saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />} Salvar Dados Perfil</Button>
               </CardContent>
             </Card>
-          )}
+          </div>
 
-          <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem]">
-            <CardHeader className="bg-study-light/20 pb-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                <User size={18} className="text-study-primary" /> Informações Acadêmicas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase ml-1">Nome Completo</Label>
-                <Input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase ml-1">Dia e Mês do Aniversário</Label>
-                <div className="flex gap-2">
-                  <div className="flex-1"><Select value={birthDay} onValueChange={setBirthDay}><SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="Dia" /></SelectTrigger><SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
-                  <div className="flex-[2]"><Select value={birthMonth} onValueChange={setBirthMonth}><SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="Mês" /></SelectTrigger><SelectContent>{MONTHS.map(m => <SelectItem key={m.val} value={m.val}>{m.label}</SelectItem>)}</SelectContent></Select></div>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase ml-1">Curso</Label>
-                <Input value={profile.course} onChange={e => setProfile({...profile, course: e.target.value})} className="rounded-xl" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1"><Label className="text-[10px] font-bold uppercase ml-1">Período</Label><Input value={profile.period} onChange={e => setProfile({...profile, period: e.target.value})} placeholder="Ex: 5º Período" className="rounded-xl" /></div>
-                <div className="space-y-1"><Label className="text-[10px] font-bold uppercase ml-1">Ano Conclusão</Label><Input value={profile.completion_year} onChange={e => setProfile({...profile, completion_year: e.target.value})} placeholder="Ex: 2026" className="rounded-xl" /></div>
-              </div>
-              <Button onClick={handleSave} disabled={saving} className="w-full bg-study-primary rounded-xl mt-2 font-bold py-6">{saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />} Salvar Dados Perfil</Button>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-4">
-            <h2 className="text-lg font-black text-study-dark dark:text-white flex items-center gap-2 px-2">
-              <History className="text-study-primary" size={20} /> Histórico de Simulados
-            </h2>
-            {quizHistory.length === 0 ? (
-              <p className="text-center py-10 text-study-medium text-sm">Você ainda não realizou simulados.</p>
-            ) : (
-              quizHistory.map((quiz) => (
-                <Card key={quiz.id} className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden group">
-                  <div className="p-5 flex items-center justify-between">
-                    <div className="flex gap-4">
-                      <div className="bg-study-primary/10 p-3 rounded-2xl"><Award className="text-study-primary" size={24} /></div>
-                      <div>
-                        <h3 className="font-bold text-study-dark dark:text-white text-sm">{quiz.subject_name}</h3>
-                        <p className="text-[10px] text-study-medium font-bold uppercase">{format(new Date(quiz.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}</p>
-                      </div>
-                    </div>
-                    <div className="text-right flex flex-col items-end gap-2">
-                      <Badge className={cn("rounded-full px-3", (quiz.score / quiz.total_questions) >= 0.7 ? "bg-green-500" : "bg-red-500")}>{quiz.score}/{quiz.total_questions} Acertos</Badge>
-                    </div>
-                  </div>
-                </Card>
-              ))
+          {/* Coluna Direita: Gráfico e Histórico */}
+          <div className="space-y-8">
+            {chartData.length > 1 && (
+              <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
+                <CardHeader className="bg-study-primary/10 pb-2">
+                  <CardTitle className="text-xs font-black text-study-primary uppercase tracking-widest flex items-center gap-2">
+                    <TrendingUp size={16} /> Evolução de Notas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 h-[200px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" />
+                      <XAxis dataKey="data" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--study-medium))' }} />
+                      <YAxis domain={[0, 10]} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--study-medium))' }} />
+                      <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} labelStyle={{ fontWeight: 'bold' }} />
+                      <Line type="monotone" dataKey="score" stroke="hsl(var(--study-primary))" strokeWidth={3} dot={{ r: 4, fill: 'hsl(var(--study-primary))', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
             )}
+
+            <div className="space-y-4">
+              <h2 className="text-lg font-black text-study-dark dark:text-white flex items-center gap-2 px-2">
+                <History className="text-study-primary" size={20} /> Histórico de Simulados
+              </h2>
+              <div className="grid grid-cols-1 gap-4">
+                {quizHistory.length === 0 ? (
+                  <p className="text-center py-10 text-study-medium text-sm">Você ainda não realizou simulados.</p>
+                ) : (
+                  quizHistory.map((quiz) => (
+                    <Card key={quiz.id} className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden group">
+                      <div className="p-5 flex items-center justify-between">
+                        <div className="flex gap-4">
+                          <div className="bg-study-primary/10 p-3 rounded-2xl"><Award className="text-study-primary" size={24} /></div>
+                          <div>
+                            <h3 className="font-bold text-study-dark dark:text-white text-sm">{quiz.subject_name}</h3>
+                            <p className="text-[10px] text-study-medium font-bold uppercase">{format(new Date(quiz.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}</p>
+                          </div>
+                        </div>
+                        <div className="text-right flex flex-col items-end gap-2">
+                          <Badge className={cn("rounded-full px-3", (quiz.score / quiz.total_questions) >= 0.7 ? "bg-green-500" : "bg-red-500")}>{quiz.score}/{quiz.total_questions} Acertos</Badge>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

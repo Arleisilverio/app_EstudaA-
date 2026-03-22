@@ -180,6 +180,16 @@ const SettingsPage = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Até logo!");
+      navigate('/login');
+    } catch (error) {
+      toast.error("Erro ao sair.");
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
@@ -196,7 +206,7 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative pb-40">
+    <div className="min-h-screen bg-background flex flex-col max-w-md md:max-w-4xl lg:max-w-5xl mx-auto relative pb-40">
       <div className="p-6">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -224,144 +234,148 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        <div className="space-y-10">
-          {(isProfessor || isAdmin) && (
-            <section className="space-y-3">
-              <h2 className="text-xs font-bold text-study-primary uppercase tracking-widest ml-1">Perfil do Professor</h2>
-              <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
-                <CardContent className="pt-6 space-y-6">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="relative">
-                      <Avatar className="h-20 w-20 border-2 border-study-primary/20">
-                        <AvatarImage src={professorData.avatar_url} className="object-cover" />
-                        <AvatarFallback className="bg-study-primary text-white font-black">
-                          {professorData.name?.substring(0,2).toUpperCase() || "P"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <label className="absolute bottom-0 right-0 bg-study-primary text-white p-1.5 rounded-full cursor-pointer shadow-lg border-2 border-white dark:border-zinc-900">
-                        {uploadingPhoto ? <Loader2 className="animate-spin" size={12} /> : <Camera size={12} />}
-                        <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
-                      </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-10">
+            {(isProfessor || isAdmin) && (
+              <section className="space-y-3">
+                <h2 className="text-xs font-bold text-study-primary uppercase tracking-widest ml-1">Perfil do Professor</h2>
+                <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
+                  <CardContent className="pt-6 space-y-6">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="relative">
+                        <Avatar className="h-20 w-20 border-2 border-study-primary/20">
+                          <AvatarImage src={professorData.avatar_url} className="object-cover" />
+                          <AvatarFallback className="bg-study-primary text-white font-black">
+                            {professorData.name?.substring(0,2).toUpperCase() || "P"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <label className="absolute bottom-0 right-0 bg-study-primary text-white p-1.5 rounded-full cursor-pointer shadow-lg border-2 border-white dark:border-zinc-900">
+                          {uploadingPhoto ? <Loader2 className="animate-spin" size={12} /> : <Camera size={12} />}
+                          <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
+                        </label>
+                      </div>
+                      <p className="text-[10px] font-bold text-study-medium uppercase">Sua foto profissional</p>
                     </div>
-                    <p className="text-[10px] font-bold text-study-medium uppercase">Sua foto profissional</p>
-                  </div>
 
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-bold uppercase ml-1">Nome de Exibição</Label>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] font-bold uppercase ml-1">Nome de Exibição</Label>
+                        <Input 
+                          value={professorData.name} 
+                          onChange={e => setProfessorData({...professorData, name: e.target.value})} 
+                          placeholder="Ex: Prof. Arlei"
+                          className="rounded-xl h-11 bg-zinc-800/30 border-zinc-700 text-white" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] font-black uppercase ml-1">Disciplina Vinculada</Label>
+                        <Select value={professorData.subject_id} onValueChange={v => setProfessorData({...professorData, subject_id: v})}>
+                          <SelectTrigger className="rounded-xl h-11 bg-zinc-800/30 border-zinc-700 text-white">
+                            <SelectValue placeholder="Selecione sua matéria" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-2xl">
+                            {subjects.map(s => <SelectItem key={s.id} value={s.id} className="rounded-xl">{s.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button onClick={handleSaveProfessorProfile} disabled={savingProf} className="w-full bg-study-primary text-zinc-900 rounded-xl font-bold h-12">
+                        {savingProf ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={16} />} Salvar Dados Docentes
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </section>
+            )}
+
+            {isAdmin && (
+              <section className="space-y-3">
+                <div className="flex items-center justify-between ml-1">
+                  <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest">Autorizar Professores</h2>
+                  <Badge variant="outline" className="text-[9px] border-study-primary text-study-primary">CONTROLE</Badge>
+                </div>
+                <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
+                  <CardContent className="pt-6 space-y-4">
+                    <div className="flex gap-2">
                       <Input 
-                        value={professorData.name} 
-                        onChange={e => setProfessorData({...professorData, name: e.target.value})} 
-                        placeholder="Ex: Prof. Arlei"
-                        className="rounded-xl h-11 bg-zinc-800/30 border-zinc-700 text-white" 
+                        placeholder="Email do professor..." 
+                        value={newEmail}
+                        onChange={e => setNewEmail(e.target.value)}
+                        className="rounded-xl h-12 bg-zinc-800/50 border-zinc-700 text-white"
+                        disabled={isSavingEmail}
                       />
+                      <Button onClick={handleAuthorizeEmail} disabled={isSavingEmail} className="bg-study-primary h-12 w-12 p-0 rounded-xl shrink-0">
+                        {isSavingEmail ? <Loader2 className="animate-spin text-zinc-900" /> : <UserPlus size={20} className="text-zinc-900" />}
+                      </Button>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-black uppercase ml-1">Disciplina Vinculada</Label>
-                      <Select value={professorData.subject_id} onValueChange={v => setProfessorData({...professorData, subject_id: v})}>
-                        <SelectTrigger className="rounded-xl h-11 bg-zinc-800/30 border-zinc-700 text-white">
-                          <SelectValue placeholder="Selecione sua matéria" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-2xl">
-                          {subjects.map(s => <SelectItem key={s.id} value={s.id} className="rounded-xl">{s.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button onClick={handleSaveProfessorProfile} disabled={savingProf} className="w-full bg-study-primary text-zinc-900 rounded-xl font-bold h-12">
-                      {savingProf ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={16} />} Salvar Dados Docentes
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-          )}
 
-          {isAdmin && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {loadingEmails ? (
+                        <div className="flex justify-center py-4"><Loader2 className="animate-spin text-study-primary" size={20} /></div>
+                      ) : (
+                        authorizedEmails.map(auth => (
+                          <div key={auth.email} className="flex items-center justify-between p-3.5 bg-zinc-800/40 rounded-2xl border border-white/5 group">
+                            <span className="text-xs font-bold text-zinc-300 truncate flex-1">{auth.email}</span>
+                            <button onClick={() => handleRemoveAuth(auth.email)} className="text-red-500 p-2 hover:bg-red-500/10 rounded-xl transition-colors">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </section>
+            )}
+          </div>
+
+          <div className="space-y-10">
+            <FeedbackSection />
+
             <section className="space-y-3">
-              <div className="flex items-center justify-between ml-1">
-                <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest">Autorizar Professores</h2>
-                <Badge variant="outline" className="text-[9px] border-study-primary text-study-primary">CONTROLE</Badge>
-              </div>
-              <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-[2rem] overflow-hidden">
-                <CardContent className="pt-6 space-y-4">
-                  <div className="flex gap-2">
-                    <Input 
-                      placeholder="Email do professor..." 
-                      value={newEmail}
-                      onChange={e => setNewEmail(e.target.value)}
-                      className="rounded-xl h-12 bg-zinc-800/50 border-zinc-700 text-white"
-                      disabled={isSavingEmail}
-                    />
-                    <Button onClick={handleAuthorizeEmail} disabled={isSavingEmail} className="bg-study-primary h-12 w-12 p-0 rounded-xl shrink-0">
-                      {isSavingEmail ? <Loader2 className="animate-spin text-zinc-900" /> : <UserPlus size={20} className="text-zinc-900" />}
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {loadingEmails ? (
-                      <div className="flex justify-center py-4"><Loader2 className="animate-spin text-study-primary" size={20} /></div>
-                    ) : (
-                      authorizedEmails.map(auth => (
-                        <div key={auth.email} className="flex items-center justify-between p-3.5 bg-zinc-800/40 rounded-2xl border border-white/5 group">
-                          <span className="text-xs font-bold text-zinc-300 truncate flex-1">{auth.email}</span>
-                          <button onClick={() => handleRemoveAuth(auth.email)} className="text-red-500 p-2 hover:bg-red-500/10 rounded-xl transition-colors">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
+              <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Legal e Suporte</h2>
+              <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
+                <CardContent className="p-0">
+                  <button onClick={() => navigate('/terms')} className="w-full flex items-center justify-between p-4 px-6 border-b border-white/5 hover:bg-study-light/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-xl"><ShieldAlert size={18} className="text-green-600" /></div>
+                      <span className="font-bold text-zinc-200 text-sm">Legal e Privacidade</span>
+                    </div>
+                    <ChevronRight size={18} className="text-study-medium" />
+                  </button>
+                  <button onClick={() => navigate('/support')} className="w-full flex items-center justify-between p-4 px-6 hover:bg-study-light/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-xl"><ExternalLink size={18} className="text-blue-600" /></div>
+                      <span className="font-bold text-zinc-200 text-sm">Suporte e Desenvolvedor</span>
+                    </div>
+                    <ChevronRight size={18} className="text-study-medium" />
+                  </button>
                 </CardContent>
               </Card>
             </section>
-          )}
 
-          <FeedbackSection />
-
-          <section className="space-y-3">
-            <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Legal e Suporte</h2>
-            <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
-              <CardContent className="p-0">
-                <button onClick={() => navigate('/terms')} className="w-full flex items-center justify-between p-4 px-6 border-b border-white/5 hover:bg-study-light/10 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-xl"><ShieldAlert size={18} className="text-green-600" /></div>
-                    <span className="font-bold text-zinc-200 text-sm">Legal e Privacidade</span>
-                  </div>
-                  <ChevronRight size={18} className="text-study-medium" />
-                </button>
-                <button onClick={() => navigate('/support')} className="w-full flex items-center justify-between p-4 px-6 hover:bg-study-light/10 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-xl"><ExternalLink size={18} className="text-blue-600" /></div>
-                    <span className="font-bold text-zinc-200 text-sm">Suporte e Desenvolvedor</span>
-                  </div>
-                  <ChevronRight size={18} className="text-study-medium" />
-                </button>
-              </CardContent>
-            </Card>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-xs font-bold text-red-500 uppercase tracking-widest ml-1">Gerenciamento</h2>
-            <Card className="border-2 border-red-100 dark:border-red-900/20 bg-red-900/5 rounded-3xl overflow-hidden">
-              <CardContent className="p-0">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <button className="w-full flex items-center justify-between p-4 px-6 text-red-600 hover:bg-red-900/10 transition-colors">
-                      <div className="flex items-center gap-3"><Trash2 size={18} /><span className="font-bold text-sm">Excluir Minha Conta</span></div>
-                      <ChevronRight size={18} />
-                    </button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="rounded-3xl bg-zinc-900 text-white">
-                    <AlertDialogHeader><AlertDialogTitle>Excluir conta permanentemente?</AlertDialogTitle><AlertDialogDescription className="text-zinc-400">Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                      <AlertDialogCancel className="rounded-xl bg-zinc-800 border-none text-white">Manter conta</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteAccount} disabled={isDeleting} className="bg-red-600 text-white rounded-xl font-bold">{isDeleting ? <Loader2 className="animate-spin" /> : "Sim, excluir tudo"}</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </CardContent>
-            </Card>
-          </section>
+            <section className="space-y-3">
+              <h2 className="text-xs font-bold text-red-500 uppercase tracking-widest ml-1">Gerenciamento</h2>
+              <Card className="border-2 border-red-100 dark:border-red-900/20 bg-red-900/5 rounded-3xl overflow-hidden">
+                <CardContent className="p-0">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="w-full flex items-center justify-between p-4 px-6 text-red-600 hover:bg-red-900/10 transition-colors">
+                        <div className="flex items-center gap-3"><Trash2 size={18} /><span className="font-bold text-sm">Excluir Minha Conta</span></div>
+                        <ChevronRight size={18} />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="rounded-3xl bg-zinc-900 text-white">
+                      <AlertDialogHeader><AlertDialogTitle>Excluir conta permanentemente?</AlertDialogTitle><AlertDialogDescription className="text-zinc-400">Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                      <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                        <AlertDialogCancel className="rounded-xl bg-zinc-800 border-none text-white">Manter conta</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAccount} disabled={isDeleting} className="bg-red-600 text-white rounded-xl font-bold">{isDeleting ? <Loader2 className="animate-spin" /> : "Sim, excluir tudo"}</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </CardContent>
+              </Card>
+            </section>
+          </div>
         </div>
       </div>
 

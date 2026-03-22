@@ -29,7 +29,6 @@ const SubjectGrid = () => {
   const [formData, setFormData] = useState({ name: '', icon_name: 'Book' });
 
   useEffect(() => {
-    // Carrega do cache primeiro
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       setSubjects(JSON.parse(cached));
@@ -84,7 +83,6 @@ const SubjectGrid = () => {
         toast.success("Matéria adicionada!");
       }
       
-      // Invalida cache e refetch
       localStorage.removeItem(CACHE_KEY);
       await fetchSubjects();
       setIsDialogOpen(false);
@@ -105,7 +103,6 @@ const SubjectGrid = () => {
       
       toast.success("Matéria removida");
       
-      // Invalida cache e refetch
       localStorage.removeItem(CACHE_KEY);
       await fetchSubjects();
     } catch (error) {
@@ -143,7 +140,7 @@ const SubjectGrid = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {subjects.map((subject) => {
           const IconComponent = ICON_MAP[subject.icon_name] || Book;
           return (

@@ -101,7 +101,6 @@ const ExamsPage = () => {
         : await supabase.from('exams').insert([{ ...formData, user_id: user?.id }]);
       if (error) throw error;
       
-      // Refetch imediato após salvar
       await fetchExams();
     };
 
@@ -121,7 +120,6 @@ const ExamsPage = () => {
       const { error } = await supabase.from('exams').delete().eq('id', id);
       if (error) throw error;
       
-      // Refetch imediato após excluir
       await fetchExams();
     };
 
@@ -135,7 +133,7 @@ const ExamsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative pb-32">
+    <div className="min-h-screen bg-background flex flex-col max-w-md md:max-w-5xl lg:max-w-6xl mx-auto relative pb-32">
       <div className="p-6">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -163,9 +161,9 @@ const ExamsPage = () => {
         ) : exams.length === 0 ? (
           <div className="text-center py-20 text-study-medium italic">Nenhuma prova agendada no momento.</div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
             {exams.map((exam) => (
-              <Card key={exam.id} className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden group">
+              <Card key={exam.id} className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden group h-fit">
                 <CardContent className="p-0">
                   <div className="bg-study-light/20 dark:bg-zinc-800/50 px-6 py-4 flex justify-between items-center border-b border-study-light/30 dark:border-zinc-800">
                     <div className="flex items-center gap-2">
