@@ -52,17 +52,38 @@ const ProfessorChat = ({ subjectId }: ProfessorChatProps) => {
   }, [messages, isLoading, currentQuiz]);
 
   useEffect(() => {
-    if (subjectId) fetchDocuments();
+    if (subjectId) {
+      fetchDocuments();
+
+      // Ouvinte em tempo real para novos documentos ficarem prontos
+      const channel = supabase
+        .channel(`chat-docs-${subjectId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'documents',
+          filter: `subject_id=eq.${subjectId}`
+        }, () => {
+          fetchDocuments();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
   }, [subjectId]);
 
   const fetchDocuments = async () => {
     const { data } = await supabase
       .from('documents')
-      .select('id, name')
+      .select('id, name, status')
       .eq('subject_id', subjectId)
       .eq('status', 'ready');
+    
     if (data) {
       setAvailableDocs(data);
+      // Seleciona automaticamente os novos documentos que ficarem prontos
       setSelectedDocs(data.map(d => d.id));
     }
   };
@@ -91,7 +112,7 @@ const ProfessorChat = ({ subjectId }: ProfessorChatProps) => {
           subjectId, 
           query: textToSearch, 
           action: actionType,
-          documentIds: actionType === 'chat' ? [] : selectedDocs
+          documentIds: selectedDocs // Agora enviamos os IDs selecionados
         }
       });
 
@@ -128,7 +149,9 @@ const ProfessorChat = ({ subjectId }: ProfessorChatProps) => {
             Validação da IA
             <Sparkles className="text-study-primary" size={20} />
           </h2>
-          <p className="text-[10px] font-bold uppercase text-study-medium">Teste o Professor Virtual</p>
+          <p className="text-[10px] font-bold uppercase text-study-medium">
+            {availableDocs.length} materiais ativos para esta matéria
+          </p>
         </div>
 
         {!currentQuiz && !isLoading && (
@@ -170,6 +193,15 @@ const ProfessorChat = ({ subjectId }: ProfessorChatProps) => {
                 <div className="prose prose-sm dark:prose-invert max-w-none">
                   {msg.text.split('\n').map((line, i) => <p key={i} className="mb-2 last:mb-0">{line}</p>)}
                 </div>
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-3 pt-2 border-t border-study-light/10 flex flex-wrap gap-1">
+                    {msg.sources.map((s, i) => (
+                      <span key={i} className="text-[8px] font-bold uppercase bg-study-light/20 px-2 py-0.5 rounded text-study-medium">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}
@@ -196,13 +228,13 @@ const ProfessorChat = ({ subjectId }: ProfessorChatProps) => {
         <div className="space-y-3 px-2">
           <form onSubmit={(e) => { e.preventDefault(); handleAction('chat'); }} className="relative">
             <Input
-              placeholder="Digite sua dúvida aqui..."
+              placeholder={availableDocs.length > 0 ? "Digite sua dúvida aqui..." : "Aguardando materiais ficarem prontos..."}
               className="pl-4 pr-12 py-7 rounded-2xl border-study-primary/20 bg-white dark:bg-zinc-800 text-sm shadow-md"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              disabled={isLoading}
+              disabled={isLoading || availableDocs.length === 0}
             />
-            <Button type="submit" size="icon" className="absolute right-2 top-2 bottom-2 bg-study-primary text-white rounded-xl" disabled={isLoading || !query.trim()}>
+            <Button type="submit" size="icon" className="absolute right-2 top-2 bottom-2 bg-study-primary text-white rounded-xl" disabled={isLoading || !query.trim() || availableDocs.length === 0}>
               <Send size={18} />
             </Button>
           </form>
