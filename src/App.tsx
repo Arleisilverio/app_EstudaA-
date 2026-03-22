@@ -18,16 +18,14 @@ import Terms from "./pages/Terms";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import Support from "./pages/Support";
-import ProfessorPortal from "./pages/ProfessorPortal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, loading, role, isAdmin } = useAuth();
+  const { session, loading } = useAuth();
   const location = useLocation();
   
-  // Se ainda está carregando a SESSÃO inicial, mostra o loader
   if (loading && !session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
@@ -43,24 +41,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // Se temos sessão, validamos as rotas por role
   if (session) {
-    const profAllowedPaths = ['/professor-portal', '/settings', '/support', '/terms', '/exams', '/profile'];
-    
-    // Redirecionamento de Professor (se não for admin)
-    if (role === 'professor' && !isAdmin && !profAllowedPaths.includes(location.pathname)) {
-      return <Navigate to="/professor-portal" replace />;
-    }
-
-    // Redirecionamento de Aluno tentando acessar portal
-    if (role === 'student' && !isAdmin && location.pathname === '/professor-portal') {
-      return <Navigate to="/" replace />;
-    }
-    
     return <>{children}</>;
   }
   
-  // Se não tem sessão e não está carregando, vai para o login
   return <Navigate to="/login" state={{ from: location }} replace />;
 };
 
@@ -77,7 +61,6 @@ const AppRoutes = () => (
     <Route path="/exams" element={<ProtectedRoute><Exams /></ProtectedRoute>} />
     <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
     <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
-    <Route path="/professor-portal" element={<ProtectedRoute><ProfessorPortal /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
     <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
     <Route path="/terms" element={<Terms />} />

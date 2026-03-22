@@ -1,15 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ClipboardCheck, CalendarDays, Ticket, LayoutGrid, GraduationCap, Settings2 } from 'lucide-react';
+import { ClipboardCheck, CalendarDays, Ticket, LayoutGrid } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/components/AuthProvider';
 import { motion } from "framer-motion";
 
 const BottomNav = () => {
   const location = useLocation();
-  const { isProfessor, isAdmin } = useAuth();
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -30,26 +28,12 @@ const BottomNav = () => {
     };
   }, []);
 
-  const profItems = [
-    { label: 'Portal', icon: GraduationCap, path: '/professor-portal' },
-    { label: 'Provas', icon: ClipboardCheck, path: '/exams' },
-    { label: 'Ajustes', icon: Settings2, path: '/settings' },
-  ];
-
-  const studentItems = [
+  const items = [
     { label: 'Início', icon: LayoutGrid, path: '/' },
     { label: 'Provas', icon: ClipboardCheck, path: '/exams' },
     { label: 'Grade', icon: CalendarDays, path: '/schedule' },
     { label: 'Eventos', icon: Ticket, path: '/events' },
   ];
-
-  if (isAdmin) {
-    // Para Admin, mostramos o menu de estudante mas com o portal de professor extra
-    studentItems.push({ label: 'Portal', icon: GraduationCap, path: '/professor-portal' });
-  }
-
-  const isProfOnly = isProfessor && !isAdmin;
-  const items = isProfOnly ? profItems : studentItems;
 
   return (
     <motion.div 
@@ -65,9 +49,7 @@ const BottomNav = () => {
     >
       <div className={cn(
         "h-14 sm:h-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg shadow-2xl flex items-center justify-around border border-study-light/20 dark:border-white/10 pointer-events-auto",
-        isProfOnly 
-          ? "w-[280px] sm:w-[320px] rounded-full sm:rounded-[2.5rem] px-4" 
-          : "w-full max-w-md sm:max-w-lg rounded-[1.2rem] sm:rounded-[2.5rem] px-2"
+        "w-full max-w-md sm:max-w-lg rounded-[1.2rem] sm:rounded-[2.5rem] px-2"
       )}>
         {items.map((item) => {
           const isActive = location.pathname === item.path;

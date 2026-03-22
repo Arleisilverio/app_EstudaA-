@@ -267,7 +267,7 @@ const SettingsPage = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-bold uppercase ml-1">Disciplina Vinculada</Label>
+                      <Label className="text-[10px] font-black uppercase ml-1">Disciplina Vinculada</Label>
                       <Select value={professorData.subject_id} onValueChange={v => setProfessorData({...professorData, subject_id: v})}>
                         <SelectTrigger className="rounded-xl h-11 bg-zinc-800/30 border-zinc-700 text-white">
                           <SelectValue placeholder="Selecione sua matéria" />
@@ -283,18 +283,6 @@ const SettingsPage = () => {
                   </div>
                 </CardContent>
               </Card>
-
-              <Button 
-                onClick={() => navigate('/professor-portal')}
-                variant="outline"
-                className="w-full border-study-primary/30 text-study-primary rounded-2xl py-6 h-auto flex items-center justify-between px-6"
-              >
-                <div className="flex items-center gap-3">
-                  <GraduationCap size={24} />
-                  <span className="font-bold">Ir para o Portal de Materiais</span>
-                </div>
-                <ChevronRight size={18} />
-              </Button>
             </section>
           )}
 
