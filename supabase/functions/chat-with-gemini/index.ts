@@ -18,7 +18,7 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // 1. Gerar embedding da pergunta do usuário
+    // 1. Embedding da pergunta
     const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
@@ -27,48 +27,45 @@ serve(async (req) => {
     const embeddingData = await embeddingResponse.json();
     const queryEmbedding = embeddingData.data[0].embedding;
 
-    // 2. Busca Semântica (Retrieval)
-    // Usamos a função RPC match_document_chunks definida no banco
+    // 2. Busca Semântica (Threshold reduzido para 0.2 para ser mais abrangente)
     const { data: chunks, error: matchError } = await supabase.rpc('match_document_chunks', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.3,
-      match_count: 6,
+      match_threshold: 0.2, 
+      match_count: 8,
       filter_subject_id: subjectId
     });
 
     if (matchError) throw matchError;
 
-    const contextText = chunks?.map(c => `[Fonte: ${c.metadata.document_name}] ${c.content}`).join("\n\n") || "Nenhum conteúdo relevante encontrado.";
+    const contextText = chunks?.map(c => `[Documento: ${c.metadata.document_name}] ${c.content}`).join("\n\n") || "Nenhum conteúdo relevante encontrado nos materiais.";
 
-    // 3. Configurar Prompt do Professor Virtual
+    // 3. Prompt
     let systemPrompt = `Você é o Professor Virtual do Estuda AÍ. 
-    Sua missão é ensinar e tirar dúvidas baseando-se EXCLUSIVAMENTE no contexto fornecido.
+    Responda SEMPRE em Português do Brasil.
+    Use EXCLUSIVAMENTE o contexto fornecido para responder.
     
-    REGRAS CRÍTICAS:
-    1. Se a resposta não estiver no contexto, diga educadamente que não encontrou essa informação nos materiais.
-    2. Cite sempre o nome do documento de onde extraiu a informação.
-    3. Seja didático, use tópicos e negrito para facilitar a leitura.`;
+    DIRETRIZES:
+    - Se não souber, diga que o material não cobre esse ponto.
+    - Cite o nome do documento usado.
+    - Use negrito e listas para clareza.`;
 
     if (action === 'quiz') {
-      systemPrompt += `\nTAREFA: Gere um SIMULADO com 10 QUESTÕES de múltipla escolha (A a D) em formato JSON. 
-      Inclua 'question', 'options' (array), 'correctIndex' (0-3) e 'explanation'. 
-      Retorne APENAS o JSON.`;
+      systemPrompt += `\nTAREFA: Gere um SIMULADO com 10 QUESTÕES (A-D) em JSON. Retorne APENAS o JSON puro.`;
     } else if (action === 'summary') {
-      systemPrompt += `\nTAREFA: Crie um resumo estruturado com os pontos mais importantes do material.`;
+      systemPrompt += `\nTAREFA: Resuma os pontos chave do material em tópicos estruturados.`;
     }
 
-    // 4. Chamada OpenAI
-    const model = action === 'quiz' ? "gpt-4o-mini" : "gpt-4o";
+    // 4. Geração
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: model,
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `CONTEXTO DOS MATERIAIS:\n${contextText}\n\nPERGUNTA/AÇÃO: ${query}` }
+          { role: "user", content: `MATERIAIS DE ESTUDO:\n${contextText}\n\nPERGUNTA: ${query}` }
         ],
-        temperature: 0.4
+        temperature: 0.3
       })
     });
 

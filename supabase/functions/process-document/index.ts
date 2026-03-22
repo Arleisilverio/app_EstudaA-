@@ -11,56 +11,64 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   const functionName = "process-document";
-  console.log(`[${functionName}] Iniciando processamento...`);
+  let currentDocId = null;
 
   try {
     const { documentId } = await req.json();
+    currentDocId = documentId;
+    
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? "";
     const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? "";
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? "";
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // 1. Buscar metadados do documento
+    // 1. Buscar metadados
     const { data: doc, error: docError } = await supabase
       .from('documents')
       .select('*')
       .eq('id', documentId)
       .single();
 
-    if (docError || !doc) throw new Error("Documento não encontrado");
+    if (docError || !doc) throw new Error("Documento não encontrado no banco.");
 
     // 2. Baixar arquivo
     const { data: fileBlob, error: downloadError } = await supabase.storage
       .from('documents')
       .download(doc.file_path);
 
-    if (downloadError) throw downloadError;
+    if (downloadError) throw new Error("Erro ao baixar arquivo do Storage.");
 
-    // 3. Extrair texto (Simples para TXT/PDF texto)
+    // 3. Extrair texto
+    // Nota: Para PDFs complexos, o ideal é uma biblioteca de parsing. 
+    // Aqui tentamos extrair o texto bruto disponível.
     const fullText = await fileBlob.text();
     
-    // 4. Chunking (Divisão em partes de ~1000 caracteres com overlap)
-    const chunks: string[] = [];
-    const chunkSize = 1000;
-    const overlap = 200;
-
-    for (let i = 0; i < fullText.length; i += (chunkSize - overlap)) {
-      chunks.push(fullText.substring(i, i + chunkSize));
+    if (!fullText || fullText.length < 10) {
+      throw new Error("O arquivo parece estar vazio ou é um PDF protegido/imagem.");
     }
 
-    console.log(`[${functionName}] Gerando ${chunks.length} chunks para o documento ${doc.name}`);
+    // 4. Chunking
+    const chunks: string[] = [];
+    const chunkSize = 800; // Reduzido para melhor precisão
+    const overlap = 150;
 
-    // 5. Gerar Embeddings e Salvar
+    for (let i = 0; i < fullText.length; i += (chunkSize - overlap)) {
+      const chunk = fullText.substring(i, i + chunkSize).trim();
+      if (chunk.length > 20) chunks.push(chunk);
+    }
+
+    console.log(`[${functionName}] Processando ${chunks.length} partes para: ${doc.name}`);
+
+    // 5. Gerar Embeddings em lotes (Batching)
     for (const chunk of chunks) {
       const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: "text-embedding-3-small",
-          input: chunk
-        })
+        body: JSON.stringify({ model: "text-embedding-3-small", input: chunk })
       });
+
+      if (!embeddingResponse.ok) continue;
 
       const embeddingData = await embeddingResponse.json();
       const embedding = embeddingData.data[0].embedding;
@@ -73,7 +81,7 @@ serve(async (req) => {
       });
     }
 
-    // 6. Atualizar status
+    // 6. Finalizar
     await supabase.from('documents').update({ status: 'ready' }).eq('id', doc.id);
 
     return new Response(JSON.stringify({ success: true }), { 
@@ -81,7 +89,16 @@ serve(async (req) => {
     });
 
   } catch (err: any) {
-    console.error(`[${functionName}] Erro:`, err.message);
+    console.error(`[${functionName}] Erro Crítico:`, err.message);
+    
+    // Se falhar, marca como erro no banco para o usuário saber
+    if (currentDocId) {
+      const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? "";
+      const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? "";
+      const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+      await supabase.from('documents').update({ status: 'error' }).eq('id', currentDocId);
+    }
+
     return new Response(JSON.stringify({ error: err.message }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
