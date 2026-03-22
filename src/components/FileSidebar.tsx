@@ -37,8 +37,6 @@ const FileSidebar = () => {
   const [loading, setLoading] = useState(true);
 
   const CACHE_KEY = `cached_docs_${subjectId}`;
-
-  // Estados para Long Press
   const [docToDelete, setDocToDelete] = useState<Document | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -46,13 +44,11 @@ const FileSidebar = () => {
 
   useEffect(() => {
     if (subjectId) {
-      // Carrega do cache imediatamente
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         setDocuments(JSON.parse(cached));
         setLoading(false);
       }
-
       fetchSubjectInfo();
       fetchDocuments();
 
@@ -76,20 +72,13 @@ const FileSidebar = () => {
 
   const fetchDocuments = async () => {
     try {
-      // Timeout de segurança de 5 segundos
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
       const { data, error } = await supabase
         .from('documents')
         .select('*')
         .eq('subject_id', subjectId)
         .order('created_at', { ascending: false });
       
-      clearTimeout(timeoutId);
-      
       if (error) throw error;
-      
       if (data) {
         setDocuments(data);
         localStorage.setItem(CACHE_KEY, JSON.stringify(data));
@@ -105,23 +94,39 @@ const FileSidebar = () => {
     const file = event.target.files?.[0];
     if (!file || !canManage) return;
 
+    setIsUploading(true);
+    const toastId = toast.loading("Enviando e processando material...");
+    
     try {
-      setIsUploading(true);
       const fileExt = file.name.split('.').pop();
       const fileName = `${subjectId}-${Date.now()}.${fileExt}`;
+      
+      // 1. Upload para Storage
       const { error: uploadError } = await supabase.storage.from('documents').upload(fileName, file);
       if (uploadError) throw uploadError;
-      await supabase.from('documents').insert([{
+
+      // 2. Criar registro no banco (status processing)
+      const { data: doc, error: insertError } = await supabase.from('documents').insert([{
         name: file.name,
         file_path: fileName,
         subject_id: subjectId,
         user_id: user?.id,
-        status: 'ready'
-      }]);
-      toast.success("Documento adicionado!");
+        status: 'processing'
+      }]).select().single();
+
+      if (insertError) throw insertError;
+
+      // 3. Chamar Edge Function para processar RAG (Embeddings)
+      const { error: processError } = await supabase.functions.invoke('process-document', {
+        body: { documentId: doc.id }
+      });
+
+      if (processError) throw processError;
+
+      toast.success("Material pronto para estudo!", { id: toastId });
       fetchDocuments();
     } catch (err: any) {
-      toast.error("Falha ao salvar.");
+      toast.error("Falha no processamento: " + err.message, { id: toastId });
     } finally {
       setIsUploading(false);
       event.target.value = '';
@@ -186,7 +191,7 @@ const FileSidebar = () => {
                 {isUploading ? <Loader2 className="animate-spin text-study-primary" /> : <Upload className="text-study-primary" />}
               </div>
               <p className="text-[10px] font-bold text-study-dark dark:text-zinc-200 uppercase text-center px-2">
-                {isUploading ? "Carregando..." : "Clique para selecionar arquivo"}
+                {isUploading ? "Processando..." : "Clique para selecionar arquivo"}
               </p>
               <input type="file" className="hidden" onChange={handleUpload} disabled={isUploading} accept=".pdf,.docx,.txt" />
             </label>

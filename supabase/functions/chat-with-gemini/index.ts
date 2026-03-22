@@ -8,87 +8,57 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const functionName = "chat-with-gemini";
-  
   try {
-    // SEGURANÇA: Verificar se o cabeçalho de autorização existe
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), { 
-        status: 401, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
-
+    const { subjectId, query, action, documentIds } = await req.json();
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // SEGURANÇA: Validar o token do usuário antes de processar qualquer dado
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // 1. Gerar embedding da pergunta do usuário
+    const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: query })
+    });
+    const embeddingData = await embeddingResponse.json();
+    const queryEmbedding = embeddingData.data[0].embedding;
 
-    if (authError || !user) {
-      console.error(`[${functionName}] Token inválido ou expirado`);
-      return new Response(JSON.stringify({ error: "Sessão inválida" }), { 
-        status: 401, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
+    // 2. Busca Semântica (Retrieval)
+    // Usamos a função RPC match_document_chunks definida no banco
+    const { data: chunks, error: matchError } = await supabase.rpc('match_document_chunks', {
+      query_embedding: queryEmbedding,
+      match_threshold: 0.3,
+      match_count: 6,
+      filter_subject_id: subjectId
+    });
 
-    const { subjectId, query, action, documentIds } = await req.json();
+    if (matchError) throw matchError;
 
-    // 1. Buscar metadados dos documentos (filtrando por IDs se fornecidos)
-    let queryBuilder = supabase
-      .from('documents')
-      .select('id, name, file_path')
-      .eq('subject_id', subjectId);
+    const contextText = chunks?.map(c => `[Fonte: ${c.metadata.document_name}] ${c.content}`).join("\n\n") || "Nenhum conteúdo relevante encontrado.";
 
-    if (documentIds && documentIds.length > 0) {
-      queryBuilder = queryBuilder.in('id', documentIds);
-    }
-
-    const { data: documents, error: docsError } = await queryBuilder;
-    if (docsError) throw docsError;
-
-    // 2. Baixar conteúdos de forma segura
-    let contextText = "";
-    if (documents && documents.length > 0) {
-      const downloadPromises = documents.map(async (doc) => {
-        try {
-          const { data: fileBlob, error: downloadError } = await supabase.storage.from('documents').download(doc.file_path)
-          if (downloadError) return null;
-          const text = await fileBlob.text();
-          return `\n--- FONTE: ${doc.name} ---\n${text.substring(0, 8000)}\n`;
-        } catch (e) {
-          return null;
-        }
-      });
-
-      const results = await Promise.all(downloadPromises);
-      contextText = results.filter(r => r !== null).join("");
-    }
-
-    // 3. Definir Prompts Otimizados
-    let systemPrompt = `Você é o Professor Especialista do Estuda AÍ. 
-    Seu objetivo é auxiliar o aluno COM BASE EXCLUSIVA nos documentos fornecidos no contexto.
-    IMPORTANTE: Sempre que responder, utilize as informações das fontes e mencione-as se necessário.`;
+    // 3. Configurar Prompt do Professor Virtual
+    let systemPrompt = `Você é o Professor Virtual do Estuda AÍ. 
+    Sua missão é ensinar e tirar dúvidas baseando-se EXCLUSIVAMENTE no contexto fornecido.
     
+    REGRAS CRÍTICAS:
+    1. Se a resposta não estiver no contexto, diga educadamente que não encontrou essa informação nos materiais.
+    2. Cite sempre o nome do documento de onde extraiu a informação.
+    3. Seja didático, use tópicos e negrito para facilitar a leitura.`;
+
     if (action === 'quiz') {
-      systemPrompt += `\nTAREFA: Gere um SIMULADO DE NÍVEL UNIVERSITÁRIO com 10 QUESTÕES em formato JSON puro.`;
+      systemPrompt += `\nTAREFA: Gere um SIMULADO com 10 QUESTÕES de múltipla escolha (A a D) em formato JSON. 
+      Inclua 'question', 'options' (array), 'correctIndex' (0-3) e 'explanation'. 
+      Retorne APENAS o JSON.`;
     } else if (action === 'summary') {
-      systemPrompt += `\nTAREFA: Gere um RESUMO PEDAGÓGICO ESTRUTURADO.`;
+      systemPrompt += `\nTAREFA: Crie um resumo estruturado com os pontos mais importantes do material.`;
     }
 
     // 4. Chamada OpenAI
     const model = action === 'quiz' ? "gpt-4o-mini" : "gpt-4o";
-
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
@@ -96,14 +66,11 @@ serve(async (req) => {
         model: model,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "system", content: `CONTEXTO DAS FONTES:\n${contextText || "Nenhum arquivo enviado ainda."}` },
-          { role: "user", content: query }
+          { role: "user", content: `CONTEXTO DOS MATERIAIS:\n${contextText}\n\nPERGUNTA/AÇÃO: ${query}` }
         ],
-        temperature: 0.7
+        temperature: 0.4
       })
     });
-
-    if (!response.ok) throw new Error("Erro na API da OpenAI");
 
     const result = await response.json();
     let finalContent = result.choices?.[0]?.message?.content;
@@ -116,11 +83,10 @@ serve(async (req) => {
       text: finalContent,
       isQuiz: action === 'quiz',
       isSummary: action === 'summary',
-      sources: documents?.map(d => d.name) || []
+      sources: [...new Set(chunks?.map(c => c.metadata.document_name))]
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-  } catch (err) {
-    console.error(`[${functionName}] Erro:`, err);
+  } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
