@@ -44,8 +44,8 @@ const HomeHeader = () => {
   const fetchData = async () => {
     try {
       if (isProfessor) {
-        // Se for professor, buscamos dados da tabela de professores e o nome da matéria
-        const { data: profData } = await supabase
+        // Busca dados específicos da tabela de professores
+        const { data: profData, error } = await supabase
           .from('professors')
           .select('name, avatar_url, subject_id, subjects(name)')
           .eq('user_id', user?.id)
@@ -61,7 +61,7 @@ const HomeHeader = () => {
           localStorage.setItem(CACHE_KEY, JSON.stringify(formatted));
         }
       } else {
-        // Se for aluno/admin, buscamos do perfil padrão
+        // Busca dados do perfil de aluno/admin
         const { data: profileData } = await supabase
           .from('profiles')
           .select('name, course, period, avatar_url')
@@ -79,7 +79,7 @@ const HomeHeader = () => {
         }
       }
     } catch (err) {
-      console.error("Erro ao carregar perfil:", err);
+      console.error("Erro ao carregar perfil no header:", err);
     } finally {
       setLoading(false);
     }
