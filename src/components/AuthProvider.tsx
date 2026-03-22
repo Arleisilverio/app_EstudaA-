@@ -17,6 +17,7 @@ type AuthContextType = {
 };
 
 const ADMIN_EMAILS = ['arlei85@hotmail.com', 'arlei.se.silverio85@gmail.com'];
+const ROLE_CACHE_KEY = 'study_ai_user_role';
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
@@ -32,7 +33,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<UserRole>('student');
+  
+  // Inicializa a role a partir do cache para evitar "modo fantasma"
+  const [role, setRole] = useState<UserRole>(() => {
+    const cached = localStorage.getItem(ROLE_CACHE_KEY);
+    return (cached as UserRole) || 'student';
+  });
+
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchUserRole = async (userId: string) => {
@@ -45,40 +52,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (error) throw error;
       if (data?.user_role) {
-        setRole(data.user_role as UserRole);
+        const newRole = data.user_role as UserRole;
+        setRole(newRole);
+        localStorage.setItem(ROLE_CACHE_KEY, newRole);
       }
     } catch (err) {
-      console.error("Erro ao buscar role:", err);
+      console.error("Auth: Erro ao sincronizar role:", err);
     }
   };
 
   const checkSession = async () => {
-    // Inicia um timeout de segurança para não travar o usuário na tela de loading
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    // Timeout de segurança reduzido para 3s (mais agressivo)
     timeoutRef.current = setTimeout(() => {
-      setLoading(false);
-      console.warn("Auth: Timeout de segurança atingido. Forçando renderização.");
-    }, 4000);
+      if (loading) {
+        setLoading(false);
+        console.warn("Auth: Timeout atingido. Liberando UI.");
+      }
+    }, 3000);
 
     try {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
       if (currentSession) {
         setSession(currentSession);
         setUser(currentSession.user);
-        // Busca a role mas não bloqueia o setLoading(false) se demorar
-        fetchUserRole(currentSession.user.id).finally(() => {
-          setLoading(false);
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        });
+        
+        // Libera o loading assim que a sessão é confirmada
+        // A role será atualizada em background
+        setLoading(false);
+        fetchUserRole(currentSession.user.id);
       } else {
         setSession(null);
         setUser(null);
         setLoading(false);
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
       }
     } catch (error) {
-      console.error("Erro ao verificar sessão:", error);
+      console.error("Auth: Erro crítico de sessão:", error);
       setLoading(false);
+    } finally {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     }
   };
@@ -87,32 +100,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log(`Auth Event: ${event}`);
+      
       if (currentSession) {
         setSession(currentSession);
         setUser(currentSession.user);
-        await fetchUserRole(currentSession.user.id);
+        fetchUserRole(currentSession.user.id);
       } else {
         setSession(null);
         setUser(null);
         setRole('student');
+        localStorage.removeItem(ROLE_CACHE_KEY);
       }
       setLoading(false);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     });
 
-    const handleVisibilityChange = () => {
+    const handleSync = () => {
       if (document.visibilityState === 'visible') {
         checkSession();
       }
     };
 
-    window.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', checkSession);
+    window.addEventListener('visibilitychange', handleSync);
+    window.addEventListener('focus', handleSync);
 
     return () => {
       subscription.unsubscribe();
-      window.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', checkSession);
+      window.removeEventListener('visibilitychange', handleSync);
+      window.removeEventListener('focus', handleSync);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);

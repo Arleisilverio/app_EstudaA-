@@ -27,42 +27,40 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading, role, isAdmin } = useAuth();
   const location = useLocation();
   
-  // Se temos sessão, renderizamos. Se não temos e não está carregando, redirecionamos.
+  // Se ainda está carregando a SESSÃO inicial, mostra o loader
+  if (loading && !session) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <div className="relative">
+          <Loader2 className="animate-spin text-study-primary" size={48} />
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-sm font-bold text-study-medium uppercase tracking-widest animate-pulse">
+            Sincronizando...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se temos sessão, validamos as rotas por role
   if (session) {
     const profAllowedPaths = ['/professor-portal', '/settings', '/support', '/terms', '/exams', '/profile'];
     
+    // Redirecionamento de Professor (se não for admin)
     if (role === 'professor' && !isAdmin && !profAllowedPaths.includes(location.pathname)) {
       return <Navigate to="/professor-portal" replace />;
     }
 
+    // Redirecionamento de Aluno tentando acessar portal
     if (role === 'student' && !isAdmin && location.pathname === '/professor-portal') {
       return <Navigate to="/" replace />;
     }
     
     return <>{children}</>;
   }
-
-  // Se ainda está carregando, mostramos o loader
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <div className="relative">
-          <Loader2 className="animate-spin text-study-primary" size={48} />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-2 h-2 bg-study-primary rounded-full animate-ping" />
-          </div>
-        </div>
-        <div className="text-center space-y-1">
-          <p className="text-sm font-bold text-study-medium uppercase tracking-widest animate-pulse">
-            Sincronizando...
-          </p>
-          <p className="text-[10px] text-study-medium/50 font-bold uppercase">Verificando credenciais</p>
-        </div>
-      </div>
-    );
-  }
   
-  // Se não está carregando e não tem sessão, vai para o login
+  // Se não tem sessão e não está carregando, vai para o login
   return <Navigate to="/login" state={{ from: location }} replace />;
 };
 
