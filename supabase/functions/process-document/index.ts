@@ -1,8 +1,6 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-// Importando um parser de PDF compatível com Deno/Edge Functions
-import { PDFDocument } from 'https://cdn.skypack.dev/pdf-lib'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,28 +39,22 @@ serve(async (req) => {
 
     if (downloadError) throw new Error("Erro ao baixar arquivo.");
 
-    // 3. Extração de Texto (Melhorada para PDF e Texto)
-    let fullText = "";
+    // 3. Extração de Texto
+    // Convertemos o binário para texto e limpamos caracteres de controle que quebram o RAG
     const fileArrayBuffer = await fileBlob.arrayBuffer();
-
-    if (doc.name.toLowerCase().endsWith('.pdf')) {
-      // Tentativa de extração básica de texto de PDF (Edge Functions são limitadas)
-      // Para garantir 100% de sucesso, convertemos o blob em texto bruto 
-      // mas limpamos caracteres não-imprimíveis que quebram o RAG
-      const rawText = new TextDecoder().decode(fileArrayBuffer);
-      fullText = rawText.replace(/[^\x20-\x7E\u00A0-\u00FF\n\r\t]/g, " ");
-    } else {
-      fullText = new TextDecoder().decode(fileArrayBuffer);
-    }
+    const rawText = new TextDecoder().decode(fileArrayBuffer);
     
-    if (fullText.length < 50) {
-      throw new Error("O conteúdo extraído é muito curto ou o PDF é uma imagem (OCR necessário).");
+    // Limpeza agressiva de caracteres não-imprimíveis (comum em PDFs binários)
+    const fullText = rawText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, " ");
+    
+    if (fullText.length < 20) {
+      throw new Error("O conteúdo extraído é muito curto. Verifique se o arquivo contém texto legível.");
     }
 
     // 4. Divisão em partes (Chunking)
     const chunks: string[] = [];
-    const chunkSize = 1000;
-    const overlap = 200;
+    const chunkSize = 800;
+    const overlap = 150;
 
     for (let i = 0; i < fullText.length; i += (chunkSize - overlap)) {
       const chunk = fullText.substring(i, i + chunkSize).trim();
