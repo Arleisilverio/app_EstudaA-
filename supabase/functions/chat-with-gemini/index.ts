@@ -10,6 +10,8 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
+  const functionName = "chat-with-ai";
+
   try {
     const { subjectId, query, action, documentIds } = await req.json();
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -18,60 +20,78 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // 1. Embedding da pergunta
+    console.log(`[${functionName}] Processando pergunta para matéria: ${subjectId}`);
+
+    // 1. Gerar Embedding da pergunta do usuário
     const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: "text-embedding-3-small", input: query })
     });
+    
+    if (!embeddingResponse.ok) throw new Error("Falha ao gerar embedding da pergunta.");
+    
     const embeddingData = await embeddingResponse.json();
     const queryEmbedding = embeddingData.data[0].embedding;
 
-    // 2. Busca Semântica (Threshold reduzido para 0.2 para ser mais abrangente)
+    // 2. Busca Semântica no Banco de Dados
+    // Aumentamos o match_count para 10 para dar mais contexto à IA
+    // Ajustamos o threshold para 0.3 para filtrar melhor o conteúdo irrelevante
     const { data: chunks, error: matchError } = await supabase.rpc('match_document_chunks', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.2, 
-      match_count: 8,
+      match_threshold: 0.3, 
+      match_count: 10,
       filter_subject_id: subjectId
     });
 
     if (matchError) throw matchError;
 
-    const contextText = chunks?.map(c => `[Documento: ${c.metadata.document_name}] ${c.content}`).join("\n\n") || "Nenhum conteúdo relevante encontrado nos materiais.";
+    const contextText = chunks && chunks.length > 0 
+      ? chunks.map(c => `[Fonte: ${c.metadata.document_name}] ${c.content}`).join("\n\n") 
+      : "Não foram encontrados trechos específicos nos documentos carregados para esta pergunta.";
 
-    // 3. Prompt
-    let systemPrompt = `Você é o Professor Virtual do Estuda AÍ. 
-    Responda SEMPRE em Português do Brasil.
-    Use EXCLUSIVAMENTE o contexto fornecido para responder.
+    // 3. Configuração do Prompt do Professor Virtual
+    let systemPrompt = `Você é o Professor Virtual do Estuda AÍ, um assistente acadêmico especializado.
+    Responda SEMPRE em Português do Brasil de forma clara, didática e profissional.
     
-    DIRETRIZES:
-    - Se não souber, diga que o material não cobre esse ponto.
-    - Cite o nome do documento usado.
-    - Use negrito e listas para clareza.`;
+    REGRAS DE OURO:
+    1. Use EXCLUSIVAMENTE o contexto dos documentos fornecidos abaixo para responder.
+    2. Se a resposta não estiver nos documentos, diga educadamente: "Desculpe, mas não encontrei essa informação nos materiais de estudo desta matéria."
+    3. Sempre cite o nome do documento de onde tirou a informação.
+    4. Use formatação Markdown (negrito, listas, tabelas) para facilitar a leitura.
+    5. Se o usuário pedir um resumo, foque nos conceitos fundamentais.`;
 
     if (action === 'quiz') {
-      systemPrompt += `\nTAREFA: Gere um SIMULADO com 10 QUESTÕES (A-D) em JSON. Retorne APENAS o JSON puro.`;
+      systemPrompt += `\n\nTAREFA: Gere um SIMULADO com 10 QUESTÕES de múltipla escolha (A a D). 
+      Retorne APENAS um objeto JSON puro com a estrutura: {"questions": [{"id": 1, "question": "...", "options": ["...", "..."], "correctIndex": 0, "explanation": "..."}]}`;
     } else if (action === 'summary') {
-      systemPrompt += `\nTAREFA: Resuma os pontos chave do material em tópicos estruturados.`;
+      systemPrompt += `\n\nTAREFA: Crie um resumo estruturado em tópicos dos pontos mais importantes do material fornecido.`;
     }
 
-    // 4. Geração
+    // 4. Chamada para o GPT-4o mini
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `MATERIAIS DE ESTUDO:\n${contextText}\n\nPERGUNTA: ${query}` }
+          { role: "user", content: `CONTEXTO DOS MATERIAIS:\n${contextText}\n\nPERGUNTA DO ALUNO: ${query}` }
         ],
-        temperature: 0.3
+        temperature: 0.4, // Baixa temperatura para evitar invenções
+        max_tokens: 2000
       })
     });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error?.message || "Erro na API da OpenAI");
+    }
 
     const result = await response.json();
     let finalContent = result.choices?.[0]?.message?.content;
 
+    // Limpeza de JSON se for quiz
     if (action === 'quiz') {
       finalContent = finalContent.replace(/```json/g, "").replace(/```/g, "").trim();
     }
@@ -80,10 +100,11 @@ serve(async (req) => {
       text: finalContent,
       isQuiz: action === 'quiz',
       isSummary: action === 'summary',
-      sources: [...new Set(chunks?.map(c => c.metadata.document_name))]
+      sources: chunks ? [...new Set(chunks.map(c => c.metadata.document_name))] : []
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (err: any) {
+    console.error(`[${functionName}] Erro:`, err.message);
     return new Response(JSON.stringify({ error: err.message }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
