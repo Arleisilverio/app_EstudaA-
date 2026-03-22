@@ -89,7 +89,6 @@ const SchedulePage = () => {
     }
 
     const saveFn = async () => {
-      // Garantir que o formato de hora seja HH:mm:ss para o Postgres
       const payload = {
         ...formData,
         user_id: user.id,
@@ -102,13 +101,15 @@ const SchedulePage = () => {
         : await supabase.from('schedule').insert([payload]);
       
       if (error) throw error;
+      
+      // Refetch imediato
+      await fetchSchedule();
     };
 
     toast.promise(saveFn(), {
       loading: 'Salvando na grade...',
       success: () => {
         setIsDialogOpen(false);
-        fetchSchedule();
         return editingItem ? "Grade atualizada!" : "Aula adicionada!";
       },
       error: (err) => `Erro ao salvar: ${err.message || 'Verifique os dados'}`
@@ -121,12 +122,14 @@ const SchedulePage = () => {
     const deleteFn = async () => {
       const { error } = await supabase.from('schedule').delete().eq('id', id);
       if (error) throw error;
+      
+      // Refetch imediato
+      await fetchSchedule();
     };
 
     toast.promise(deleteFn(), {
       loading: 'Removendo...',
       success: () => {
-        fetchSchedule();
         return "Item removido!";
       },
       error: 'Erro ao excluir'

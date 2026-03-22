@@ -66,7 +66,7 @@ const EventsPage = () => {
 
     try {
       const { error: uploadError } = await supabase.storage
-        .from('announcements') // Reutilizando o bucket de arquivos
+        .from('announcements')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
@@ -131,7 +131,9 @@ const EventsPage = () => {
       if (error) throw error;
       
       toast.success(editingEvent ? "Evento atualizado!" : "Evento publicado!");
-      fetchEvents();
+      
+      // Refetch imediato
+      await fetchEvents();
       setIsDialogOpen(false);
     } catch (error) {
       toast.error("Erro ao salvar");
@@ -148,7 +150,9 @@ const EventsPage = () => {
       const { error } = await supabase.from('events').delete().eq('id', id);
       if (error) throw error;
       toast.success("Evento removido");
-      fetchEvents();
+      
+      // Refetch imediato
+      await fetchEvents();
     } catch (error) {
       toast.error("Erro ao excluir");
     }

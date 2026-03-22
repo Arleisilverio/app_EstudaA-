@@ -33,7 +33,6 @@ const PromoBanner = () => {
 
   const fetchAnnouncements = async () => {
     try {
-      // Timeout de 5 segundos para não travar a UI
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -83,8 +82,12 @@ const PromoBanner = () => {
     try {
       const { error } = await supabase.from('announcements').delete().eq('id', id);
       if (error) throw error;
+      
       toast.success("Aviso removido");
-      fetchAnnouncements();
+      
+      // Invalida cache e refetch
+      localStorage.removeItem(CACHE_KEY);
+      await fetchAnnouncements();
     } catch (error) {
       toast.error("Erro ao remover");
     }

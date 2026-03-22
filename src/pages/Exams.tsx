@@ -100,6 +100,9 @@ const ExamsPage = () => {
         ? await supabase.from('exams').update(formData).eq('id', editingExam.id)
         : await supabase.from('exams').insert([{ ...formData, user_id: user?.id }]);
       if (error) throw error;
+      
+      // Refetch imediato após salvar
+      await fetchExams();
     };
 
     toast.promise(saveFn(), {
@@ -117,6 +120,9 @@ const ExamsPage = () => {
     const deleteFn = async () => {
       const { error } = await supabase.from('exams').delete().eq('id', id);
       if (error) throw error;
+      
+      // Refetch imediato após excluir
+      await fetchExams();
     };
 
     toast.promise(deleteFn(), {

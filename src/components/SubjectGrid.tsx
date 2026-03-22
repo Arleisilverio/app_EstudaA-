@@ -83,7 +83,10 @@ const SubjectGrid = () => {
         if (error) throw error;
         toast.success("Matéria adicionada!");
       }
-      fetchSubjects();
+      
+      // Invalida cache e refetch
+      localStorage.removeItem(CACHE_KEY);
+      await fetchSubjects();
       setIsDialogOpen(false);
     } catch (error) {
       toast.error("Erro ao salvar");
@@ -99,8 +102,12 @@ const SubjectGrid = () => {
     try {
       const { error } = await supabase.from('subjects').delete().eq('id', id);
       if (error) throw error;
+      
       toast.success("Matéria removida");
-      fetchSubjects();
+      
+      // Invalida cache e refetch
+      localStorage.removeItem(CACHE_KEY);
+      await fetchSubjects();
     } catch (error) {
       toast.error("Erro ao remover");
     }
