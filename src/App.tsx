@@ -19,6 +19,7 @@ import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
+import ProfessorDashboard from "./pages/ProfessorDashboard";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const AppRoutes = () => (
     
     {/* Rotas Protegidas */}
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+    <Route path="/professor-portal" element={<ProtectedRoute><ProfessorDashboard /></ProtectedRoute>} />
     <Route path="/study/:subjectId" element={<ProtectedRoute><StudyDashboard /></ProtectedRoute>} />
     <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

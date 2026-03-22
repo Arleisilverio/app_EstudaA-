@@ -5,8 +5,17 @@ import HomeHeader from "@/components/HomeHeader";
 import PromoBanner from "@/components/PromoBanner";
 import SubjectGrid from "@/components/SubjectGrid";
 import BottomNav from "@/components/BottomNav";
+import ProfessorDashboard from "./ProfessorDashboard";
+import { useAuth } from "@/components/AuthProvider";
 
 const Index = () => {
+  const { isProfessor } = useAuth();
+
+  // Se for professor, renderiza o Portal Docente como Home
+  if (isProfessor) {
+    return <ProfessorDashboard />;
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md md:max-w-5xl lg:max-w-6xl mx-auto relative overflow-x-hidden">
       {/* Background Decorative Elements */}
