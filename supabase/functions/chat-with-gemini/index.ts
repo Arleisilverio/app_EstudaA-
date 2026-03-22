@@ -10,8 +10,6 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const functionName = "chat-with-ai";
-
   try {
     const { subjectId, query, action, documentIds } = await req.json();
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -20,47 +18,46 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    console.log(`[${functionName}] Iniciando RAG para: ${query}`);
-
-    // 1. Gerar Embedding da pergunta
-    const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+    // 1. Embedding da pergunta
+    const embRes = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: "text-embedding-3-small", input: query })
     });
-    
-    const embeddingData = await embeddingResponse.json();
-    const queryEmbedding = embeddingData.data[0].embedding;
+    const embData = await embRes.json();
+    const queryEmbedding = embData.data[0].embedding;
 
-    // 2. Busca Semântica (Threshold reduzido para 0.25 para garantir resultados)
+    // 2. Busca no Banco (Filtro por Matéria)
     const { data: chunks, error: matchError } = await supabase.rpc('match_document_chunks', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.25, 
-      match_count: 8,
+      match_threshold: 0.15, // Reduzido para capturar qualquer relação
+      match_count: 15,       // Aumentado para dar mais base à IA
       filter_subject_id: subjectId
     });
 
     if (matchError) throw matchError;
 
-    const contextText = chunks && chunks.length > 0 
-      ? chunks.map(c => `[Arquivo: ${c.metadata.document_name}] ${c.content}`).join("\n\n") 
-      : "Nenhum conteúdo específico encontrado nos arquivos.";
+    // Se não houver chunks, a IA deve saber que não tem material
+    const hasContext = chunks && chunks.length > 0;
+    const contextText = hasContext 
+      ? chunks.map(c => `[FONTE: ${c.metadata.document_name}] ${c.content}`).join("\n\n") 
+      : "AVISO CRÍTICO: NENHUM MATERIAL ENCONTRADO NO BANCO DE DADOS PARA ESTA MATÉRIA.";
 
-    // 3. Prompt Simplificado (Modo Recuperação)
-    let systemPrompt = `Você é o Professor Virtual. 
-    Responda SEMPRE com base nos documentos fornecidos abaixo.
-    Se a informação não estiver nos documentos, avise que o material não cobre esse ponto.
+    // 3. Prompt Ultra-Restrito
+    let systemPrompt = `Você é o Professor Virtual do Estuda AÍ.
+    Sua ÚNICA fonte de conhecimento são os fragmentos de texto fornecidos abaixo.
     
-    CONTEÚDO DOS ARQUIVOS:
-    ${contextText}`;
+    REGRAS INEGOCIÁVEIS:
+    1. Se o contexto disser "NENHUM MATERIAL ENCONTRADO", responda: "Não há materiais de estudo carregados para esta matéria. Por favor, faça o upload de um PDF primeiro."
+    2. NÃO use seu conhecimento geral. Se a resposta não estiver nos fragmentos, diga que o material não aborda o tema.
+    3. Para QUIZ: Use apenas os fatos presentes nos textos para criar as perguntas.
+    4. Para RESUMO: Sintetize apenas o que está escrito nos arquivos.`;
 
     if (action === 'quiz') {
-      systemPrompt += `\n\nTAREFA: Gere um JSON com 10 questões de múltipla escolha sobre o conteúdo acima. Estrutura: {"questions": [{"id": 1, "question": "...", "options": ["A", "B", "C", "D"], "correctIndex": 0, "explanation": "..."}]}`;
-    } else if (action === 'summary') {
-      systemPrompt += `\n\nTAREFA: Resuma os pontos principais do conteúdo acima em tópicos.`;
+      systemPrompt += `\n\nTAREFA: Gere um JSON com 10 questões baseadas nos textos. Estrutura: {"questions": [...]}`;
     }
 
-    // 4. Chamada GPT-4o mini
+    // 4. Resposta do GPT-4o mini
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
@@ -68,9 +65,9 @@ serve(async (req) => {
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: query }
+          { role: "user", content: `MATERIAIS DISPONÍVEIS:\n${contextText}\n\nSOLICITAÇÃO: ${query}` }
         ],
-        temperature: 0.3
+        temperature: 0.1 // Quase zero para evitar qualquer "criatividade"
       })
     });
 
@@ -89,10 +86,6 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (err: any) {
-    console.error(`[${functionName}] Erro:`, err.message);
-    return new Response(JSON.stringify({ error: "Erro no sistema de IA. Verifique os arquivos." }), { 
-      status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    return new Response(JSON.stringify({ error: "Falha na consulta. Verifique se há arquivos na matéria." }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 })

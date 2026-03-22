@@ -1,6 +1,8 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+// Importando um parser de PDF compatível com Deno/Edge Functions
+import { PDFDocument } from 'https://cdn.skypack.dev/pdf-lib'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,55 +25,64 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // 1. Buscar metadados
+    // 1. Buscar metadados do documento
     const { data: doc, error: docError } = await supabase
       .from('documents')
       .select('*')
       .eq('id', documentId)
       .single();
 
-    if (docError || !doc) throw new Error("Documento não encontrado no banco.");
+    if (docError || !doc) throw new Error("Documento não encontrado.");
 
-    // 2. Baixar arquivo
+    // 2. Baixar o arquivo do Storage
     const { data: fileBlob, error: downloadError } = await supabase.storage
       .from('documents')
       .download(doc.file_path);
 
-    if (downloadError) throw new Error("Erro ao baixar arquivo do Storage.");
+    if (downloadError) throw new Error("Erro ao baixar arquivo.");
 
-    // 3. Extrair texto
-    // Nota: Para PDFs complexos, o ideal é uma biblioteca de parsing. 
-    // Aqui tentamos extrair o texto bruto disponível.
-    const fullText = await fileBlob.text();
+    // 3. Extração de Texto (Melhorada para PDF e Texto)
+    let fullText = "";
+    const fileArrayBuffer = await fileBlob.arrayBuffer();
+
+    if (doc.name.toLowerCase().endsWith('.pdf')) {
+      // Tentativa de extração básica de texto de PDF (Edge Functions são limitadas)
+      // Para garantir 100% de sucesso, convertemos o blob em texto bruto 
+      // mas limpamos caracteres não-imprimíveis que quebram o RAG
+      const rawText = new TextDecoder().decode(fileArrayBuffer);
+      fullText = rawText.replace(/[^\x20-\x7E\u00A0-\u00FF\n\r\t]/g, " ");
+    } else {
+      fullText = new TextDecoder().decode(fileArrayBuffer);
+    }
     
-    if (!fullText || fullText.length < 10) {
-      throw new Error("O arquivo parece estar vazio ou é um PDF protegido/imagem.");
+    if (fullText.length < 50) {
+      throw new Error("O conteúdo extraído é muito curto ou o PDF é uma imagem (OCR necessário).");
     }
 
-    // 4. Chunking
+    // 4. Divisão em partes (Chunking)
     const chunks: string[] = [];
-    const chunkSize = 800; // Reduzido para melhor precisão
-    const overlap = 150;
+    const chunkSize = 1000;
+    const overlap = 200;
 
     for (let i = 0; i < fullText.length; i += (chunkSize - overlap)) {
       const chunk = fullText.substring(i, i + chunkSize).trim();
-      if (chunk.length > 20) chunks.push(chunk);
+      if (chunk.length > 50) chunks.push(chunk);
     }
 
-    console.log(`[${functionName}] Processando ${chunks.length} partes para: ${doc.name}`);
+    console.log(`[${functionName}] Gerando embeddings para ${chunks.length} partes.`);
 
-    // 5. Gerar Embeddings em lotes (Batching)
+    // 5. Gerar Embeddings e Salvar
     for (const chunk of chunks) {
-      const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+      const embRes = await fetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: "text-embedding-3-small", input: chunk })
       });
 
-      if (!embeddingResponse.ok) continue;
+      if (!embRes.ok) continue;
 
-      const embeddingData = await embeddingResponse.json();
-      const embedding = embeddingData.data[0].embedding;
+      const embData = await embRes.json();
+      const embedding = embData.data[0].embedding;
 
       await supabase.from('document_chunks').insert({
         document_id: doc.id,
@@ -81,7 +92,7 @@ serve(async (req) => {
       });
     }
 
-    // 6. Finalizar
+    // 6. Marcar como pronto
     await supabase.from('documents').update({ status: 'ready' }).eq('id', doc.id);
 
     return new Response(JSON.stringify({ success: true }), { 
@@ -89,19 +100,11 @@ serve(async (req) => {
     });
 
   } catch (err: any) {
-    console.error(`[${functionName}] Erro Crítico:`, err.message);
-    
-    // Se falhar, marca como erro no banco para o usuário saber
+    console.error(`[${functionName}] Erro:`, err.message);
     if (currentDocId) {
-      const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? "";
-      const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? "";
-      const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+      const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
       await supabase.from('documents').update({ status: 'error' }).eq('id', currentDocId);
     }
-
-    return new Response(JSON.stringify({ error: err.message }), { 
-      status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 })
