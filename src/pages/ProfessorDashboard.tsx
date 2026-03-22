@@ -201,16 +201,9 @@ const ProfessorDashboard = () => {
               Portal Docente <GraduationCap className="text-study-primary" size={28} />
             </h1>
             <p className="text-study-medium text-xs font-bold uppercase tracking-widest">
-              Bem-vindo, {professorData?.name?.split(' ')[0]}
+              Gestão Acadêmica e IA
             </p>
           </div>
-          <Button 
-            onClick={() => navigate('/settings')}
-            variant="outline" 
-            className="rounded-xl border-study-primary/20 bg-study-primary/5 text-study-primary gap-2"
-          >
-            <Settings2 size={18} /> Perfil
-          </Button>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -234,7 +227,9 @@ const ProfessorDashboard = () => {
               <Sparkles size={14} className="text-study-primary" /> Suas Matérias e Materiais
             </h2>
           </div>
-          {/* Passamos o ID da matéria do professor para filtrar o grid */}
+          <p className="text-[11px] text-study-medium italic px-1">
+            Selecione uma matéria abaixo para subir PDFs e validar o Professor Virtual (RAG).
+          </p>
           <SubjectGrid filterId={professorData?.subject_id} />
         </div>
       </div>

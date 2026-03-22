@@ -39,19 +39,44 @@ const HomeHeader = () => {
       fetchData();
       fetchNotifications();
     }
-  }, [user]);
+  }, [user, isProfessor]);
 
   const fetchData = async () => {
     try {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('name, course, period, avatar_url')
-        .eq('id', user?.id)
-        .single();
-      
-      if (profileData) {
-        setProfile(profileData);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(profileData));
+      if (isProfessor) {
+        // Se for professor, buscamos dados da tabela de professores e o nome da matéria
+        const { data: profData } = await supabase
+          .from('professors')
+          .select('name, avatar_url, subject_id, subjects(name)')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+        
+        if (profData) {
+          const formatted = {
+            name: profData.name,
+            avatar_url: profData.avatar_url,
+            display_info: (profData as any).subjects?.name || "Professor"
+          };
+          setProfile(formatted);
+          localStorage.setItem(CACHE_KEY, JSON.stringify(formatted));
+        }
+      } else {
+        // Se for aluno/admin, buscamos do perfil padrão
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('name, course, period, avatar_url')
+          .eq('id', user?.id)
+          .single();
+        
+        if (profileData) {
+          const formatted = {
+            name: profileData.name,
+            avatar_url: profileData.avatar_url,
+            display_info: profileData.course ? `${profileData.period || ''} • ${profileData.course}` : "Estudante"
+          };
+          setProfile(formatted);
+          localStorage.setItem(CACHE_KEY, JSON.stringify(formatted));
+        }
       }
     } catch (err) {
       console.error("Erro ao carregar perfil:", err);
@@ -117,7 +142,7 @@ const HomeHeader = () => {
   return (
     <div className="flex items-center justify-between p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-[1.5rem] sm:rounded-[2rem] shadow-study mx-3 sm:mx-4 mt-4 sm:mt-6 border border-study-light/10 dark:border-white/5 transition-all">
       <div 
-        onClick={() => navigate('/profile')}
+        onClick={() => navigate(isProfessor ? '/settings' : '/profile')}
         className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 cursor-pointer group"
       >
         <div className="relative shrink-0">
@@ -142,10 +167,10 @@ const HomeHeader = () => {
         
         <div className="min-w-0 flex-1">
           <h2 className="text-sm sm:text-base font-black text-study-dark dark:text-white leading-tight tracking-tight truncate">
-            Olá, {profile?.name?.split(' ')[0] || "Estudante"}!
+            Olá, {profile?.name?.split(' ')[0] || "Usuário"}!
           </h2>
           <p className="text-[8px] sm:text-[9px] text-study-medium dark:text-zinc-400 font-bold mt-0.5 uppercase tracking-wider truncate">
-            {profile?.course ? `${profile.period || ''} • ${profile.course}` : user?.email}
+            {profile?.display_info || user?.email}
           </p>
         </div>
       </div>
@@ -176,14 +201,14 @@ const HomeHeader = () => {
               Menu da Conta
             </DropdownMenuLabel>
             <DropdownMenuItem 
-              onSelect={() => navigate('/profile')}
+              onSelect={() => navigate(isProfessor ? '/settings' : '/profile')}
               className="rounded-xl flex items-center gap-3 p-3 cursor-pointer hover:bg-study-primary/10 group"
             >
               <div className="bg-study-primary/10 p-2 rounded-lg text-study-primary group-hover:bg-study-primary group-hover:text-white transition-colors">
                 <User size={16} />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Meu Perfil</span>
+                <span className="font-bold text-sm">{isProfessor ? 'Perfil Docente' : 'Meu Perfil'}</span>
                 <span className="text-[9px] text-study-medium font-bold uppercase">Editar dados e fotos</span>
               </div>
             </DropdownMenuItem>
