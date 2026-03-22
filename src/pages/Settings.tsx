@@ -180,16 +180,6 @@ const SettingsPage = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      toast.success("Até logo!");
-      navigate('/login');
-    } catch (error) {
-      toast.error("Erro ao sair.");
-    }
-  };
-
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
@@ -345,21 +335,6 @@ const SettingsPage = () => {
                     <span className="font-bold text-zinc-200 text-sm">Suporte e Desenvolvedor</span>
                   </div>
                   <ChevronRight size={18} className="text-study-medium" />
-                </button>
-              </CardContent>
-            </Card>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-xs font-bold text-study-medium uppercase tracking-widest ml-1">Sessão</h2>
-            <Card className="border-none shadow-study bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden">
-              <CardContent className="p-0">
-                <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 px-6 hover:bg-study-light/10 transition-colors text-study-primary">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-study-primary/10 p-2 rounded-xl"><LogOut size={18} /></div>
-                    <span className="font-bold text-sm">Sair da Conta</span>
-                  </div>
-                  <ChevronRight size={18} />
                 </button>
               </CardContent>
             </Card>
