@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { PDFExtract } from "https://esm.sh/pdf.js-extract@0.2.1"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,9 +22,11 @@ serve(async (req) => {
     const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? "";
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? "";
 
+    if (!OPENAI_API_KEY) throw new Error("Configuração ausente: OPENAI_API_KEY");
+
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    console.log(`[${functionName}] Iniciando limpeza profunda do documento: ${documentId}`);
+    console.log(`[${functionName}] Processando documento: ${documentId}`);
     
     const { data: doc, error: docError } = await supabase
       .from('documents')
@@ -31,55 +34,56 @@ serve(async (req) => {
       .eq('id', documentId)
       .single();
 
-    if (docError || !doc) throw new Error("Documento não encontrado.");
+    if (docError || !doc) throw new Error("Documento não encontrado no banco.");
 
     const { data: fileBlob, error: downloadError } = await supabase.storage
       .from('documents')
       .download(doc.file_path);
 
-    if (downloadError) throw new Error("Falha ao recuperar arquivo.");
+    if (downloadError) throw new Error("Erro ao baixar arquivo do Storage.");
 
     const fileArrayBuffer = await fileBlob.arrayBuffer();
-    const rawText = new TextDecoder().decode(fileArrayBuffer);
+    const uint8Array = new Uint8Array(fileArrayBuffer);
     
-    // --- LIMPEZA PROFUNDA (Deep Cleaning) ---
-    let cleanText = rawText
-      // 1. Remove caracteres de controle e lixo binário (ASCII 0-31 e outros)
+    let extractedText = "";
+
+    // Se for PDF, usamos o extrator. Se for texto, usamos o decoder simples.
+    if (doc.name.toLowerCase().endsWith('.pdf')) {
+      console.log(`[${functionName}] Extraindo texto de PDF...`);
+      try {
+        // Nota: Em Edge Functions, a extração de PDF pode ser pesada. 
+        // Usamos uma abordagem compatível com Deno.
+        const pdfExtract = new PDFExtract();
+        const data = await pdfExtract.extractBuffer(uint8Array);
+        extractedText = data.pages
+          .map(page => page.content.map(item => item.str).join(" "))
+          .join("\n\n");
+      } catch (e) {
+        console.error(`[${functionName}] Erro no parser de PDF:`, e);
+        // Fallback para tentativa de leitura bruta se o parser falhar
+        extractedText = new TextDecoder().decode(uint8Array).replace(/[^\x20-\x7E\u00A0-\u00FF]/g, " ");
+      }
+    } else {
+      extractedText = new TextDecoder().decode(uint8Array);
+    }
+
+    // --- LIMPEZA ---
+    let cleanText = extractedText
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, " ")
-      // 2. Remove sequências repetitivas de símbolos que parecem "lixo de slide" (ex: ********* ou ---------)
       .replace(/([*#\-_=]){3,}/g, " ")
-      // 3. Remove URLs e caminhos de arquivos que poluem o contexto
-      .replace(/(https?:\/\/[^\s]+)/g, "")
-      // 4. Normaliza espaços e quebras de linha
       .replace(/\s+/g, " ")
-      // 5. Remove caracteres especiais isolados que não formam palavras
-      .replace(/\s[^a-zA-Z0-9áéíóúàèìòùâêîôûãõçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ]\s/g, " ")
       .trim();
     
-    // Diagnóstico de qualidade
-    console.log(`[${functionName}] Amostra do texto limpo: ${cleanText.substring(0, 100)}...`);
-
-    if (cleanText.length < 30) {
-      console.warn(`[${functionName}] Texto insuficiente após limpeza.`);
-      throw new Error("O arquivo contém apenas imagens ou o texto está ilegível.");
+    if (cleanText.length < 20) {
+      throw new Error("O documento parece estar vazio ou contém apenas imagens (sem texto extraível).");
     }
 
-    // CHUNKING (Divisão em blocos)
-    // Para slides, blocos menores (600 chars) funcionam melhor para não misturar assuntos de slides diferentes
-    const sentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
+    // CHUNKING
     const chunks: string[] = [];
-    let currentChunk = "";
-    const targetSize = 600; 
-
-    for (const sentence of sentences) {
-      if ((currentChunk + sentence).length > targetSize && currentChunk.length > 0) {
-        chunks.push(currentChunk.trim());
-        currentChunk = sentence;
-      } else {
-        currentChunk += " " + sentence;
-      }
+    const targetSize = 800;
+    for (let i = 0; i < cleanText.length; i += targetSize) {
+      chunks.push(cleanText.substring(i, i + targetSize));
     }
-    if (currentChunk) chunks.push(currentChunk.trim());
 
     // EMBEDDINGS
     let successCount = 0;
@@ -107,18 +111,18 @@ serve(async (req) => {
 
     await supabase.from('documents').update({ status: 'ready' }).eq('id', doc.id);
 
-    return new Response(JSON.stringify({ success: true, inserted: successCount }), { 
+    return new Response(JSON.stringify({ success: true, chunks: successCount }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
   } catch (err: any) {
-    console.error(`[${functionName}] Erro:`, err.message);
+    console.error(`[${functionName}] Erro Crítico:`, err.message);
     if (currentDocId) {
       const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
       await supabase.from('documents').update({ status: 'error' }).eq('id', currentDocId);
     }
     return new Response(JSON.stringify({ error: err.message }), { 
-      status: 500, 
+      status: 200, // Retornamos 200 com o erro no corpo para o front tratar melhor
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }

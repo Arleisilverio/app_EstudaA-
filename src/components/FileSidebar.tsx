@@ -106,7 +106,7 @@ const FileSidebar = () => {
       const { error: uploadError } = await supabase.storage.from('documents').upload(fileName, file);
       if (uploadError) throw uploadError;
 
-      // 2. Criar registro no banco (status processing)
+      // 2. Criar registro no banco
       const { data: doc, error: insertError } = await supabase.from('documents').insert([{
         name: file.name,
         file_path: fileName,
@@ -118,20 +118,23 @@ const FileSidebar = () => {
       if (insertError) throw insertError;
       createdDocId = doc.id;
 
-      // 3. Chamar Edge Function para processar RAG (Embeddings)
-      const { error: processError } = await supabase.functions.invoke('process-document', {
+      // 3. Chamar Edge Function
+      const { data, error: processError } = await supabase.functions.invoke('process-document', {
         body: { documentId: doc.id }
       });
 
       if (processError) throw processError;
+      
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
       toast.success("Material pronto para estudo!", { id: toastId });
       fetchDocuments();
     } catch (err: any) {
       console.error("Erro no upload/processamento:", err);
-      toast.error("Falha no processamento: " + err.message, { id: toastId });
+      toast.error("Falha: " + (err.message || "Erro de conexão"), { id: toastId });
       
-      // SEGURANÇA: Se a chamada falhou, forçamos o status de erro no banco para parar o loader
       if (createdDocId) {
         await supabase.from('documents').update({ status: 'error' }).eq('id', createdDocId);
         fetchDocuments();
