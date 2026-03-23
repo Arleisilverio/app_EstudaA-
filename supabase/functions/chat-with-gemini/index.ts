@@ -20,8 +20,7 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // ETAPA 5: CONSULTA (QUERY EMBEDDING)
-    console.log(`[${functionName}] Gerando embedding para a pergunta do usuário.`);
+    // Gerar embedding da pergunta
     const embRes = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
@@ -31,38 +30,33 @@ serve(async (req) => {
     const embData = await embRes.json();
     const queryEmbedding = embData.data[0].embedding;
 
-    // Busca Vetorial (Top 5 chunks mais relevantes)
-    // Aumentamos o threshold para 0.4 para garantir fidelidade (Etapa 5)
+    // Busca Vetorial
     const { data: chunks, error: matchError } = await supabase.rpc('match_document_chunks', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.4, 
-      match_count: 6,
+      match_threshold: 0.35, // Reduzi levemente para ser mais tolerante a ruídos de slides
+      match_count: 8, // Aumentei a quantidade de contexto para compensar slides curtos
       filter_subject_id: subjectId
     });
 
     if (matchError) throw matchError;
 
     const hasContext = chunks && chunks.length > 0;
-    
-    // ETAPA 6: RESPOSTA DA IA (REGRAS INEGOCIÁVEIS)
     const contextText = hasContext 
       ? chunks.map(c => `[FONTE: ${c.metadata.document_name}] ${c.content}`).join("\n\n") 
-      : "NENHUMA INFORMAÇÃO ENCONTRADA NA BASE DE DADOS.";
+      : "NENHUMA INFORMAÇÃO ENCONTRADA.";
 
     let systemPrompt = `Você é o Professor Virtual do Estuda AÍ.
     
-    REGRAS DE OURO (ETAPA 6):
-    1. Responda APENAS com base no contexto fornecido abaixo.
-    2. Se o contexto disser "NENHUMA INFORMAÇÃO ENCONTRADA", responda exatamente: "Não encontrei informações na base enviada para responder a essa pergunta."
-    3. PROIBIDO usar conhecimento geral ou inventar fatos.
-    4. Se a informação estiver incompleta no contexto, diga que o material não detalha o assunto.
-    5. Mantenha um tom didático e profissional.`;
+    DIRETRIZES DE RESPOSTA:
+    1. Use APENAS o contexto fornecido.
+    2. O contexto pode conter ruídos de formatação (caracteres estranhos de slides). IGNORE-OS e foque no sentido das palavras.
+    3. Se o contexto for insuficiente, diga: "O material disponível não detalha esse ponto específico."
+    4. PROIBIDO inventar leis ou doutrinas.
+    5. Se for um simulado (quiz), gere 10 questões de múltipla escolha com justificativa baseada no texto.`;
 
     if (action === 'quiz') {
-      systemPrompt += `\n\nTAREFA: Gere um simulado de 10 questões baseado EXCLUSIVAMENTE nos textos. Retorne apenas o JSON: {"questions": [...]}`;
+      systemPrompt += `\n\nRetorne APENAS o JSON: {"questions": [{"id": 1, "question": "...", "options": ["...", "..."], "correctIndex": 0, "explanation": "..."}]}`;
     }
-
-    console.log(`[${functionName}] Enviando para IA com ${chunks?.length || 0} chunks de contexto.`);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -71,9 +65,9 @@ serve(async (req) => {
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `CONTEXTO RECUPERADO:\n${contextText}\n\nPERGUNTA DO ESTUDANTE: ${query}` }
+          { role: "user", content: `CONTEXTO:\n${contextText}\n\nPERGUNTA: ${query}` }
         ],
-        temperature: 0.1 // Baixa temperatura para evitar alucinações
+        temperature: 0.2
       })
     });
 
@@ -87,15 +81,10 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       text: finalContent,
       isQuiz: action === 'quiz',
-      sources: chunks ? [...new Set(chunks.map(c => c.metadata.document_name))] : [],
-      debug: {
-        chunkCount: chunks?.length || 0,
-        threshold: 0.4
-      }
+      sources: chunks ? [...new Set(chunks.map(c => c.metadata.document_name))] : []
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (err: any) {
-    console.error(`[${functionName}] ERRO TÉCNICO:`, err.message);
-    return new Response(JSON.stringify({ error: "Erro no processamento da consulta RAG." }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: "Erro na consulta." }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 })
