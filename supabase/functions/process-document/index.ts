@@ -58,37 +58,47 @@ serve(async (req) => {
     }
 
     let cleanText = extractedText.replace(/\s+/g, " ").trim();
-    
     if (cleanText.length < 10) throw new Error("Documento sem texto extraível.");
 
-    // CHUNKING (Blocos maiores para melhor contexto)
+    // CHUNKING
     const chunks: string[] = [];
     const targetSize = 1000;
     for (let i = 0; i < cleanText.length; i += targetSize) {
-      chunks.push(cleanText.substring(i, i + targetSize));
+      const chunk = cleanText.substring(i, i + targetSize).trim();
+      if (chunk) chunks.push(chunk);
     }
 
-    // BATCH EMBEDDINGS (MUITO MAIS RÁPIDO)
-    console.log(`[${functionName}] Gerando embeddings para ${chunks.length} blocos...`);
-    const embRes = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: "text-embedding-3-small", input: chunks })
-    });
+    console.log(`[${functionName}] Processando ${chunks.length} blocos em lotes...`);
 
-    if (!embRes.ok) throw new Error("Falha na API de Embeddings");
-    const embData = await embRes.json();
+    // PROCESSAMENTO EM LOTES DE 50 (Seguro para a API)
+    const batchSize = 50;
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const currentBatch = chunks.slice(i, i + batchSize);
+      
+      const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: "text-embedding-3-small", input: currentBatch })
+      });
 
-    // Inserção em massa
-    const inserts = chunks.map((chunk, idx) => ({
-      document_id: doc.id,
-      content: chunk,
-      embedding: embData.data[idx].embedding,
-      metadata: { subject_id: doc.subject_id, document_name: doc.name }
-    }));
+      if (!embRes.ok) {
+        const errorData = await embRes.json();
+        console.error(`[${functionName}] Erro OpenAI no lote ${i}:`, errorData);
+        throw new Error(`Falha na API de Embeddings: ${errorData.error?.message || "Erro desconhecido"}`);
+      }
 
-    const { error: insertError } = await supabase.from('document_chunks').insert(inserts);
-    if (insertError) throw insertError;
+      const embData = await embRes.json();
+
+      const inserts = currentBatch.map((chunk, idx) => ({
+        document_id: doc.id,
+        content: chunk,
+        embedding: embData.data[idx].embedding,
+        metadata: { subject_id: doc.subject_id, document_name: doc.name }
+      }));
+
+      const { error: insertError } = await supabase.from('document_chunks').insert(inserts);
+      if (insertError) throw insertError;
+    }
 
     await supabase.from('documents').update({ status: 'ready' }).eq('id', doc.id);
 
@@ -97,6 +107,7 @@ serve(async (req) => {
     });
 
   } catch (err: any) {
+    console.error(`[${functionName}] Erro fatal:`, err.message);
     if (currentDocId) {
       const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
       await supabase.from('documents').update({ status: 'error' }).eq('id', currentDocId);
