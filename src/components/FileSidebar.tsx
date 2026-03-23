@@ -133,7 +133,7 @@ const FileSidebar = () => {
       fetchDocuments();
     } catch (err: any) {
       console.error("Erro no upload/processamento:", err);
-      toast.error("Falha: " + (err.message || "Erro de conexão"), { id: toastId });
+      toast.error("Falha: " + (err.message || "Erro de conexão"), { id: toastId, duration: 5000 });
       
       if (createdDocId) {
         await supabase.from('documents').update({ status: 'error' }).eq('id', createdDocId);
@@ -178,7 +178,7 @@ const FileSidebar = () => {
     switch (status) {
       case 'ready': return { label: 'Disponível', color: 'text-green-500', icon: CheckCircle2 };
       case 'processing': return { label: 'Lendo...', color: 'text-study-primary', icon: Loader2 };
-      case 'error': return { label: 'Erro', color: 'text-red-500', icon: AlertCircle };
+      case 'error': return { label: 'Erro na Leitura', color: 'text-red-500', icon: AlertCircle };
       default: return { label: 'Pendente', color: 'text-study-medium', icon: Clock };
     }
   };
@@ -231,14 +231,22 @@ const FileSidebar = () => {
                   return (
                     <div 
                       key={doc.id} 
-                      className="relative flex items-center justify-between gap-4 p-3.5 rounded-2xl bg-study-light/5 dark:bg-zinc-800/30 border border-study-light/10 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 transition-all select-none touch-none active:scale-95"
+                      className={cn(
+                        "relative flex items-center justify-between gap-4 p-3.5 rounded-2xl border transition-all select-none touch-none active:scale-95",
+                        doc.status === 'error' 
+                          ? "bg-red-500/5 border-red-500/20" 
+                          : "bg-study-light/5 dark:bg-zinc-800/30 border-study-light/10 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800"
+                      )}
                       onPointerDown={() => startLongPress(doc)}
                       onPointerUp={cancelLongPress}
                       onPointerLeave={cancelLongPress}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="bg-study-primary/10 p-2 rounded-xl shrink-0">
-                          <FileText size={18} className="text-study-primary" />
+                        <div className={cn(
+                          "p-2 rounded-xl shrink-0",
+                          doc.status === 'error' ? "bg-red-500/10" : "bg-study-primary/10"
+                        )}>
+                          <FileText size={18} className={doc.status === 'error' ? "text-red-500" : "text-study-primary"} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-bold text-study-dark dark:text-zinc-200 truncate pr-1">{doc.name}</p>
@@ -248,6 +256,12 @@ const FileSidebar = () => {
                           </div>
                         </div>
                       </div>
+                      
+                      {doc.status === 'error' && canManage && (
+                        <button onClick={() => setDocToDelete(doc)} className="text-red-500 p-1 hover:bg-red-500/10 rounded-lg">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   );
                 })
