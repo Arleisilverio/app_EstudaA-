@@ -25,34 +25,31 @@ const DAYS = [
   { id: "Sábado", label: "SÁB" }
 ];
 
-// Dados extraídos da imagem do Arlei
+// Dados iniciais de fallback
 const INITIAL_SCHEDULE = [
   { day_of_week: "Segunda-feira", start_time: "08:20", end_time: "10:10", subject_name: "Direito Societário", room: "Prof. Wilian Roque", color: "bg-blue-500" },
   { day_of_week: "Segunda-feira", start_time: "10:20", end_time: "12:00", subject_name: "Procedimentos nos Tribunais", room: "Profª. Carolina Belomo", color: "bg-violet-500" },
-  
   { day_of_week: "Terça-feira", start_time: "08:20", end_time: "10:10", subject_name: "Direito Individual e Coletivo do Trabalho", room: "Prof. Rafael Carmezim", color: "bg-pink-500" },
   { day_of_week: "Terça-feira", start_time: "10:20", end_time: "12:00", subject_name: "Teoria Geral do Direito Tributário", room: "Profª. Ana Cristina", color: "bg-cyan-500" },
-  
   { day_of_week: "Quarta-feira", start_time: "08:20", end_time: "10:10", subject_name: "Prática Jurídica em Direito e Proc. Civil", room: "Prof. Wilian Roque", color: "bg-indigo-500" },
   { day_of_week: "Quarta-feira", start_time: "10:20", end_time: "12:00", subject_name: "Teoria Geral do Direito Tributário", room: "Profª. Ana Cristina", color: "bg-cyan-500" },
-  
   { day_of_week: "Quinta-feira", start_time: "08:20", end_time: "10:10", subject_name: "Agentes Públicos e Resp. Administrativa", room: "Profª. Paola Nery", color: "bg-orange-500" },
   { day_of_week: "Quinta-feira", start_time: "10:20", end_time: "12:00", subject_name: "Procedimentos nos Tribunais", room: "Profª. Carolina Belomo", color: "bg-violet-500" },
-  
   { day_of_week: "Sexta-feira", start_time: "08:20", end_time: "10:10", subject_name: "Direito Individual e Coletivo do Trabalho", room: "Prof. Rafael Carmezim", color: "bg-pink-500" },
   { day_of_week: "Sexta-feira", start_time: "10:20", end_time: "12:00", subject_name: "Desenv. Socioem. e de Carreira", room: "Prof. Eugenio Pereira", color: "bg-green-500" },
-  
   { day_of_week: "Sábado", start_time: "08:20", end_time: "10:10", subject_name: "Prática Jurídica em Direito e Proc. Civil", room: "Prof. Wilian Roque", color: "bg-indigo-500" },
 ];
 
 const SchedulePage = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isProfessor, user } = useAuth();
   const [schedule, setSchedule] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState("Segunda-feira");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   
+  const canManage = isAdmin || isProfessor;
+
   const [formData, setFormData] = useState({
     day_of_week: 'Segunda-feira',
     start_time: '',
@@ -72,7 +69,6 @@ const SchedulePage = () => {
       .select('*')
       .order('start_time', { ascending: true });
     
-    // Se o banco estiver vazio, usamos a grade oficial do Arlei
     if (!error && data && data.length > 0) {
       setSchedule(data);
     } else {
@@ -129,12 +125,28 @@ const SchedulePage = () => {
     };
 
     toast.promise(saveFn(), {
-      loading: 'Salvando...',
+      loading: 'Salvando na grade...',
       success: () => {
         setIsDialogOpen(false);
-        return "Grade atualizada!";
+        return "Horário atualizado!";
       },
       error: 'Erro ao salvar'
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Remover este horário da grade?")) return;
+    
+    const deleteFn = async () => {
+      const { error } = await supabase.from('schedule').delete().eq('id', id);
+      if (error) throw error;
+      await fetchSchedule();
+    };
+
+    toast.promise(deleteFn(), {
+      loading: 'Removendo...',
+      success: 'Horário removido!',
+      error: 'Erro ao excluir'
     });
   };
 
@@ -154,7 +166,7 @@ const SchedulePage = () => {
             </div>
           </div>
           
-          {isAdmin && (
+          {canManage && (
             <Button 
               onClick={() => handleOpenDialog()}
               className="rounded-full w-12 h-12 bg-study-primary hover:bg-study-dark p-0 shadow-lg"
@@ -164,7 +176,6 @@ const SchedulePage = () => {
           )}
         </div>
 
-        {/* Seletor de Dias Horizontal */}
         <ScrollArea className="w-full whitespace-nowrap mb-6">
           <div className="flex gap-3 pb-2">
             {DAYS.map((day) => (
@@ -206,10 +217,15 @@ const SchedulePage = () => {
                         <h3 className="font-black text-study-dark dark:text-zinc-100 text-base leading-tight">
                           {item.subject_name}
                         </h3>
-                        {isAdmin && (
-                          <button onClick={() => handleOpenDialog(item)} className="p-1 text-study-medium hover:text-study-primary">
-                            <Pencil size={14} />
-                          </button>
+                        {canManage && (
+                          <div className="flex gap-1">
+                            <button onClick={() => handleOpenDialog(item)} className="p-1.5 text-study-medium hover:text-study-primary transition-colors">
+                              <Pencil size={14} />
+                            </button>
+                            <button onClick={() => handleDelete(item.id)} className="p-1.5 text-study-medium hover:text-red-500 transition-colors">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         )}
                       </div>
                       
