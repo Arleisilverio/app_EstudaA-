@@ -9,10 +9,11 @@ import ProfessorDashboard from "./ProfessorDashboard";
 import { useAuth } from "@/components/AuthProvider";
 
 const Index = () => {
-  const { isProfessor } = useAuth();
+  const { isProfessor, isAdmin } = useAuth();
 
-  // Se for professor, renderiza o Portal Docente como Home
-  if (isProfessor) {
+  // Se for professor E NÃO for admin, renderiza o Portal Docente como Home
+  // Admins sempre verão a Home padrão (aluno/gestão)
+  if (isProfessor && !isAdmin) {
     return <ProfessorDashboard />;
   }
 
