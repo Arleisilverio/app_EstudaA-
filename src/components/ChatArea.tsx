@@ -77,11 +77,21 @@ const ChatArea = () => {
   };
 
   const handleAction = async (actionType: 'chat' | 'quiz' | 'summary', customQuery?: string) => {
-    const textToSearch = customQuery || query;
-    if (!textToSearch.trim() && actionType === 'chat') return;
+    // Define um texto padrão se for uma ação de menu e o campo estiver vazio
+    let textToSearch = customQuery || query;
+    
+    if (!textToSearch.trim()) {
+      if (actionType === 'summary') textToSearch = "Gerar resumo do material selecionado";
+      else if (actionType === 'quiz') textToSearch = "Gerar simulado do material selecionado";
+      else if (actionType === 'chat') return;
+    }
 
+    // Adiciona a mensagem do usuário no chat (exceto para quiz que abre modal)
     if (actionType !== 'quiz') {
-      setMessages(prev => [...prev, { role: 'user', text: textToSearch }]);
+      setMessages(prev => [...prev, { 
+        role: 'user', 
+        text: actionType === 'summary' ? "📄 Solicitando resumo do material..." : textToSearch 
+      }]);
     }
 
     setIsLoading(true);
