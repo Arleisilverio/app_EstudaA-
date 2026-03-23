@@ -21,17 +21,20 @@ serve(async (req) => {
     const embRes = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: "text-embedding-3-small", input: query })
+      body: JSON.stringify({ 
+        model: "text-embedding-3-small", 
+        input: query,
+        dimensions: 768 // FORÇANDO 768 DIMENSÕES PARA A BUSCA
+      })
     });
     
     const embData = await embRes.json();
     const queryEmbedding = embData.data[0].embedding;
 
-    // Busca Vetorial mais abrangente (threshold menor e mais chunks)
     const { data: chunks, error: matchError } = await supabase.rpc('match_document_chunks', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.20, // Mais tolerante
-      match_count: 15, // Mais contexto
+      match_threshold: 0.15, // Threshold ainda mais baixo para garantir resultados
+      match_count: 15,
       filter_subject_id: subjectId
     });
 
@@ -39,15 +42,9 @@ serve(async (req) => {
 
     const contextText = chunks && chunks.length > 0 
       ? chunks.map(c => `[FONTE: ${c.metadata.document_name}] ${c.content}`).join("\n\n") 
-      : "NENHUM MATERIAL ENCONTRADO PARA ESTA DÚVIDA.";
+      : "NENHUM MATERIAL ENCONTRADO.";
 
-    let systemPrompt = `Você é o Professor Virtual do Estuda AÍ, um assistente jurídico especializado.
-    
-    REGRAS DE OURO:
-    1. Responda com base no CONTEXTO fornecido.
-    2. Se o contexto for vago, tente interpretar o sentido jurídico mas avise que o material é resumido.
-    3. Use uma linguagem didática e profissional.
-    4. Para Quizzes: Gere 10 questões desafiadoras com base no material.`;
+    let systemPrompt = `Você é o Professor Virtual do Estuda AÍ. Responda com base no CONTEXTO fornecido.`;
 
     if (action === 'quiz') {
       systemPrompt += `\n\nRetorne APENAS JSON: {"questions": [{"id": 1, "question": "...", "options": ["...", "..."], "correctIndex": 0, "explanation": "..."}]}`;
@@ -60,7 +57,7 @@ serve(async (req) => {
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `CONTEXTO DOS MATERIAIS:\n${contextText}\n\nPERGUNTA DO ALUNO: ${query}` }
+          { role: "user", content: `CONTEXTO:\n${contextText}\n\nPERGUNTA: ${query}` }
         ],
         temperature: 0.3
       })

@@ -60,7 +60,6 @@ serve(async (req) => {
     let cleanText = extractedText.replace(/\s+/g, " ").trim();
     if (cleanText.length < 10) throw new Error("Documento sem texto extraível.");
 
-    // CHUNKING
     const chunks: string[] = [];
     const targetSize = 1000;
     for (let i = 0; i < cleanText.length; i += targetSize) {
@@ -68,9 +67,6 @@ serve(async (req) => {
       if (chunk) chunks.push(chunk);
     }
 
-    console.log(`[${functionName}] Processando ${chunks.length} blocos em lotes...`);
-
-    // PROCESSAMENTO EM LOTES DE 50 (Seguro para a API)
     const batchSize = 50;
     for (let i = 0; i < chunks.length; i += batchSize) {
       const currentBatch = chunks.slice(i, i + batchSize);
@@ -78,15 +74,14 @@ serve(async (req) => {
       const embRes = await fetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: "text-embedding-3-small", input: currentBatch })
+        body: JSON.stringify({ 
+          model: "text-embedding-3-small", 
+          input: currentBatch,
+          dimensions: 768 // FORÇANDO 768 DIMENSÕES PARA O BANCO
+        })
       });
 
-      if (!embRes.ok) {
-        const errorData = await embRes.json();
-        console.error(`[${functionName}] Erro OpenAI no lote ${i}:`, errorData);
-        throw new Error(`Falha na API de Embeddings: ${errorData.error?.message || "Erro desconhecido"}`);
-      }
-
+      if (!embRes.ok) throw new Error("Falha na API de Embeddings");
       const embData = await embRes.json();
 
       const inserts = currentBatch.map((chunk, idx) => ({
@@ -107,7 +102,6 @@ serve(async (req) => {
     });
 
   } catch (err: any) {
-    console.error(`[${functionName}] Erro fatal:`, err.message);
     if (currentDocId) {
       const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
       await supabase.from('documents').update({ status: 'error' }).eq('id', currentDocId);
