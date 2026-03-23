@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { CalendarDays, Clock, MapPin, Plus, Pencil, Trash2, Loader2, Save, ChevronRight } from 'lucide-react';
+import { CalendarDays, Clock, MapPin, Plus, Pencil, Trash2, Loader2, Save, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ const DAYS = [
   { id: "Sábado", label: "SÁB" }
 ];
 
-// Dados iniciais de fallback
+// Dados iniciais de fallback (Baseados no que você mandou)
 const INITIAL_SCHEDULE = [
   { day_of_week: "Segunda-feira", start_time: "08:20", end_time: "10:10", subject_name: "Direito Societário", room: "Prof. Wilian Roque", color: "bg-blue-500" },
   { day_of_week: "Segunda-feira", start_time: "10:20", end_time: "12:00", subject_name: "Procedimentos nos Tribunais", room: "Profª. Carolina Belomo", color: "bg-violet-500" },
@@ -166,14 +166,27 @@ const SchedulePage = () => {
             </div>
           </div>
           
-          {canManage && (
+          <div className="flex gap-2">
+            {/* Botão para ver a imagem oficial */}
             <Button 
-              onClick={() => handleOpenDialog()}
-              className="rounded-full w-12 h-12 bg-study-primary hover:bg-study-dark p-0 shadow-lg"
+              variant="outline"
+              size="icon"
+              className="rounded-full w-12 h-12 border-study-light/20 bg-white dark:bg-zinc-900 text-study-primary shadow-sm"
+              onClick={() => window.open('/src/assets/grade_oficial.jpg', '_blank')}
+              title="Ver Grade Oficial"
             >
-              <Plus size={24} className="text-white" />
+              <ImageIcon size={20} />
             </Button>
-          )}
+
+            {canManage && (
+              <Button 
+                onClick={() => handleOpenDialog()}
+                className="rounded-full w-12 h-12 bg-study-primary hover:bg-study-dark p-0 shadow-lg"
+              >
+                <Plus size={24} className="text-white" />
+              </Button>
+            )}
+          </div>
         </div>
 
         <ScrollArea className="w-full whitespace-nowrap mb-6">
