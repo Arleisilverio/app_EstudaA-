@@ -47,18 +47,24 @@ serve(async (req) => {
       try {
         const pdfExtract = new PDFExtract();
         const data = await pdfExtract.extractBuffer(uint8Array);
+        // Extração limpa de texto por página
         extractedText = data.pages
           .map(page => page.content.map(item => item.str).join(" "))
           .join("\n\n");
       } catch (e) {
-        extractedText = new TextDecoder().decode(uint8Array).replace(/[^\x20-\x7E\u00A0-\u00FF]/g, " ");
+        console.error(`[${functionName}] Erro na extração do PDF:`, e);
+        throw new Error("Este PDF parece ser uma imagem ou está protegido. Não foi possível extrair o texto.");
       }
     } else {
       extractedText = new TextDecoder().decode(uint8Array);
     }
 
-    let cleanText = extractedText.replace(/\s+/g, " ").trim();
-    if (cleanText.length < 10) throw new Error("Documento sem texto extraível.");
+    // Limpeza rigorosa: remove caracteres não imprimíveis e excesso de espaços
+    let cleanText = extractedText.replace(/[^\x20-\x7E\u00A0-\u00FF\n\r\t]/g, " ").replace(/\s+/g, " ").trim();
+    
+    if (cleanText.length < 20) {
+      throw new Error("O documento não contém texto legível suficiente para análise (pode ser uma imagem escaneada).");
+    }
 
     const chunks: string[] = [];
     const targetSize = 1000;
@@ -77,11 +83,11 @@ serve(async (req) => {
         body: JSON.stringify({ 
           model: "text-embedding-3-small", 
           input: currentBatch,
-          dimensions: 768 // FORÇANDO 768 DIMENSÕES PARA O BANCO
+          dimensions: 768 
         })
       });
 
-      if (!embRes.ok) throw new Error("Falha na API de Embeddings");
+      if (!embRes.ok) throw new Error("Falha na API de Inteligência Artificial.");
       const embData = await embRes.json();
 
       const inserts = currentBatch.map((chunk, idx) => ({
@@ -102,6 +108,7 @@ serve(async (req) => {
     });
 
   } catch (err: any) {
+    console.error(`[${functionName}] Erro:`, err.message);
     if (currentDocId) {
       const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
       await supabase.from('documents').update({ status: 'error' }).eq('id', currentDocId);
