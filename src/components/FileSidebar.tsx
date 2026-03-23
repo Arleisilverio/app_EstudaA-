@@ -96,6 +96,7 @@ const FileSidebar = () => {
 
     setIsUploading(true);
     const toastId = toast.loading("Enviando e processando material...");
+    let createdDocId: string | null = null;
     
     try {
       const fileExt = file.name.split('.').pop();
@@ -115,6 +116,7 @@ const FileSidebar = () => {
       }]).select().single();
 
       if (insertError) throw insertError;
+      createdDocId = doc.id;
 
       // 3. Chamar Edge Function para processar RAG (Embeddings)
       const { error: processError } = await supabase.functions.invoke('process-document', {
@@ -126,10 +128,17 @@ const FileSidebar = () => {
       toast.success("Material pronto para estudo!", { id: toastId });
       fetchDocuments();
     } catch (err: any) {
+      console.error("Erro no upload/processamento:", err);
       toast.error("Falha no processamento: " + err.message, { id: toastId });
+      
+      // SEGURANÇA: Se a chamada falhou, forçamos o status de erro no banco para parar o loader
+      if (createdDocId) {
+        await supabase.from('documents').update({ status: 'error' }).eq('id', createdDocId);
+        fetchDocuments();
+      }
     } finally {
       setIsUploading(false);
-      event.target.value = '';
+      if (event.target) event.target.value = '';
     }
   };
 
