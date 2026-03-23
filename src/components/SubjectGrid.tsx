@@ -39,6 +39,18 @@ const SubjectGrid = ({ filterId }: SubjectGridProps) => {
       setLoading(false);
     }
     fetchSubjects();
+
+    // Inscrição em tempo real para matérias
+    const channel = supabase
+      .channel('subjects-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'subjects' }, () => {
+        fetchSubjects();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [filterId]);
 
   const fetchSubjects = async () => {

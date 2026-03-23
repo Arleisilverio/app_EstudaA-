@@ -10,17 +10,14 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const functionName = "chat-with-gemini";
-
   try {
-    const { subjectId, query, action } = await req.json();
+    const { subjectId, query, action, documentIds } = await req.json();
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // Gerar embedding da pergunta
     const embRes = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
@@ -30,32 +27,30 @@ serve(async (req) => {
     const embData = await embRes.json();
     const queryEmbedding = embData.data[0].embedding;
 
-    // Busca Vetorial
+    // Busca Vetorial mais abrangente (threshold menor e mais chunks)
     const { data: chunks, error: matchError } = await supabase.rpc('match_document_chunks', {
       query_embedding: queryEmbedding,
-      match_threshold: 0.35, // Reduzi levemente para ser mais tolerante a ruídos de slides
-      match_count: 8, // Aumentei a quantidade de contexto para compensar slides curtos
+      match_threshold: 0.20, // Mais tolerante
+      match_count: 15, // Mais contexto
       filter_subject_id: subjectId
     });
 
     if (matchError) throw matchError;
 
-    const hasContext = chunks && chunks.length > 0;
-    const contextText = hasContext 
+    const contextText = chunks && chunks.length > 0 
       ? chunks.map(c => `[FONTE: ${c.metadata.document_name}] ${c.content}`).join("\n\n") 
-      : "NENHUMA INFORMAÇÃO ENCONTRADA.";
+      : "NENHUM MATERIAL ENCONTRADO PARA ESTA DÚVIDA.";
 
-    let systemPrompt = `Você é o Professor Virtual do Estuda AÍ.
+    let systemPrompt = `Você é o Professor Virtual do Estuda AÍ, um assistente jurídico especializado.
     
-    DIRETRIZES DE RESPOSTA:
-    1. Use APENAS o contexto fornecido.
-    2. O contexto pode conter ruídos de formatação (caracteres estranhos de slides). IGNORE-OS e foque no sentido das palavras.
-    3. Se o contexto for insuficiente, diga: "O material disponível não detalha esse ponto específico."
-    4. PROIBIDO inventar leis ou doutrinas.
-    5. Se for um simulado (quiz), gere 10 questões de múltipla escolha com justificativa baseada no texto.`;
+    REGRAS DE OURO:
+    1. Responda com base no CONTEXTO fornecido.
+    2. Se o contexto for vago, tente interpretar o sentido jurídico mas avise que o material é resumido.
+    3. Use uma linguagem didática e profissional.
+    4. Para Quizzes: Gere 10 questões desafiadoras com base no material.`;
 
     if (action === 'quiz') {
-      systemPrompt += `\n\nRetorne APENAS o JSON: {"questions": [{"id": 1, "question": "...", "options": ["...", "..."], "correctIndex": 0, "explanation": "..."}]}`;
+      systemPrompt += `\n\nRetorne APENAS JSON: {"questions": [{"id": 1, "question": "...", "options": ["...", "..."], "correctIndex": 0, "explanation": "..."}]}`;
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -65,9 +60,9 @@ serve(async (req) => {
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `CONTEXTO:\n${contextText}\n\nPERGUNTA: ${query}` }
+          { role: "user", content: `CONTEXTO DOS MATERIAIS:\n${contextText}\n\nPERGUNTA DO ALUNO: ${query}` }
         ],
-        temperature: 0.2
+        temperature: 0.3
       })
     });
 
