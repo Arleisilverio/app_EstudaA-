@@ -31,14 +31,14 @@ serve(async (req) => {
       .eq('id', documentId)
       .single();
 
-    if (docError || !doc) throw new Error("Documento não encontrado no banco.");
+    if (docError || !doc) throw new Error("Documento não encontrado.");
 
     // 2. Baixa o arquivo
     const { data: fileBlob, error: downloadError } = await supabase.storage
       .from('documents')
       .download(doc.file_path);
 
-    if (downloadError) throw new Error("Erro ao baixar o arquivo do servidor.");
+    if (downloadError) throw new Error("Erro ao baixar arquivo.");
 
     const fileArrayBuffer = await fileBlob.arrayBuffer();
     const uint8Array = new Uint8Array(fileArrayBuffer);
@@ -50,38 +50,37 @@ serve(async (req) => {
       try {
         const pdfExtract = new PDFExtract();
         const data = await pdfExtract.extractBuffer(uint8Array);
-        // Extração robusta preservando espaços e quebras
         extractedText = data.pages
           .map(page => page.content.map(item => item.str).join(" "))
           .join("\n\n");
       } catch (e) {
-        throw new Error("Este PDF está protegido ou é uma imagem escaneada sem texto.");
+        throw new Error("Falha na leitura do PDF.");
       }
     } else {
       extractedText = new TextDecoder().decode(uint8Array);
     }
 
-    // 4. Limpeza Inteligente (Preserva acentos e símbolos jurídicos)
+    // 4. Limpeza Profunda
     let cleanText = extractedText
       .replace(/\s+/g, " ")
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "") // Remove apenas caracteres de controle lixo
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "")
       .trim();
     
-    if (cleanText.length < 50) {
-      throw new Error("O documento parece não ter texto legível (pode ser uma imagem).");
+    if (cleanText.length < 20) {
+      throw new Error("O documento parece estar vazio ou é apenas imagem.");
     }
 
-    // 5. Divisão em Blocos (Chunks)
+    // 5. Chunking Inteligente (Blocos de 1000 caracteres com overlap)
     const chunks: string[] = [];
-    const chunkSize = 1200; // Blocos maiores para melhor contexto
-    const overlap = 200;   // Sobreposição para não perder sentido entre blocos
+    const chunkSize = 1000;
+    const overlap = 200;
     
     for (let i = 0; i < cleanText.length; i += (chunkSize - overlap)) {
       chunks.push(cleanText.substring(i, i + chunkSize));
     }
 
-    // 6. Gerar Embeddings (Padrão 1536 para máxima precisão)
-    const batchSize = 20;
+    // 6. Embeddings e Insert
+    const batchSize = 15;
     for (let i = 0; i < chunks.length; i += batchSize) {
       const currentBatch = chunks.slice(i, i + batchSize);
       
@@ -95,8 +94,8 @@ serve(async (req) => {
         })
       });
 
-      if (!embRes.ok) throw new Error("Falha na comunicação com o cérebro da IA.");
       const embData = await embRes.json();
+      if (!embData.data) throw new Error("Erro na API de Embeddings.");
 
       const inserts = currentBatch.map((chunk, idx) => ({
         document_id: doc.id,
@@ -105,11 +104,9 @@ serve(async (req) => {
         metadata: { subject_id: doc.subject_id, document_name: doc.name }
       }));
 
-      const { error: insertError } = await supabase.from('document_chunks').insert(inserts);
-      if (insertError) throw insertError;
+      await supabase.from('document_chunks').insert(inserts);
     }
 
-    // 7. Finaliza com Sucesso
     await supabase.from('documents').update({ status: 'ready' }).eq('id', doc.id);
 
     return new Response(JSON.stringify({ success: true }), { 
@@ -117,13 +114,12 @@ serve(async (req) => {
     });
 
   } catch (err: any) {
-    console.error(`[${functionName}] Erro Crítico:`, err.message);
+    console.error(`[${functionName}]`, err.message);
     if (currentDocId) {
       const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
       await supabase.from('documents').update({ status: 'error' }).eq('id', currentDocId);
     }
     return new Response(JSON.stringify({ error: err.message }), { 
-      status: 200, // Retornamos 200 para o app tratar a mensagem de erro amigavelmente
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }
