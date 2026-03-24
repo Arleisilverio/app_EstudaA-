@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Trash2, Loader2, CheckCircle2, Clock, AlertCircle, Info, ShieldAlert } from 'lucide-react';
+import { Upload, FileText, Trash2, Loader2, CheckCircle2, Clock, AlertCircle, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -19,6 +19,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useParams } from 'react-router-dom';
 import { toast } from "sonner";
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Document {
   id: string;
@@ -32,6 +33,7 @@ const FileSidebar = () => {
   const { isAdmin, isProfessor, user } = useAuth();
   const { subjectId } = useParams();
   const [isUploading, setIsUploading] = useState(false);
+  const [showTip, setShowTip] = useState(false);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [subjectName, setSubjectName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -95,6 +97,7 @@ const FileSidebar = () => {
     if (!file || !canManage) return;
 
     setIsUploading(true);
+    setShowTip(false);
     const toastId = toast.loading("Enviando e processando material...");
     let createdDocId: string | null = null;
     
@@ -102,11 +105,9 @@ const FileSidebar = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${subjectId}-${Date.now()}.${fileExt}`;
       
-      // 1. Upload para Storage
       const { error: uploadError } = await supabase.storage.from('documents').upload(fileName, file);
       if (uploadError) throw uploadError;
 
-      // 2. Criar registro no banco
       const { data: doc, error: insertError } = await supabase.from('documents').insert([{
         name: file.name,
         file_path: fileName,
@@ -118,23 +119,17 @@ const FileSidebar = () => {
       if (insertError) throw insertError;
       createdDocId = doc.id;
 
-      // 3. Chamar Edge Function
       const { data, error: processError } = await supabase.functions.invoke('process-document', {
         body: { documentId: doc.id }
       });
 
       if (processError) throw processError;
-      
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (data?.error) throw new Error(data.error);
 
       toast.success("Material pronto para estudo!", { id: toastId });
       fetchDocuments();
     } catch (err: any) {
-      console.error("Erro no upload/processamento:", err);
       toast.error("Falha: " + (err.message || "Erro de conexão"), { id: toastId, duration: 5000 });
-      
       if (createdDocId) {
         await supabase.from('documents').update({ status: 'error' }).eq('id', createdDocId);
         fetchDocuments();
@@ -191,20 +186,35 @@ const FileSidebar = () => {
       </div>
 
       {canManage && (
-        <div className="space-y-4">
-          {/* Caixa de Aviso de Formato */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 flex gap-3 animate-in fade-in slide-in-from-top-2 duration-500">
-            <Info className="text-blue-500 shrink-0" size={20} />
-            <div className="space-y-1">
-              <p className="text-[11px] font-black text-blue-500 uppercase tracking-widest">Dica de Formato</p>
-              <p className="text-[10px] font-bold text-study-medium leading-tight">
-                Use PDFs com <span className="text-study-dark dark:text-white">texto selecionável</span>, DOCX ou TXT. 
-                Evite fotos de livros ou PDFs escaneados, pois a IA não consegue ler imagens.
-              </p>
-            </div>
-          </div>
+        <div className="space-y-4 relative">
+          <AnimatePresence>
+            {showTip && !isUploading && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute -top-24 left-0 right-0 z-50 bg-blue-600 text-white rounded-2xl p-4 shadow-2xl border border-white/20"
+              >
+                <div className="flex gap-3">
+                  <Info className="shrink-0" size={20} />
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-black uppercase tracking-widest">Dica de Formato</p>
+                    <p className="text-[10px] font-bold leading-tight opacity-90">
+                      Use PDFs com <span className="underline">texto selecionável</span>, DOCX ou TXT. 
+                      Evite fotos de livros ou PDFs escaneados.
+                    </p>
+                  </div>
+                </div>
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-blue-600 rotate-45" />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          <Card className="border-none shadow-study bg-white dark:bg-zinc-900 overflow-hidden rounded-[2rem]">
+          <Card 
+            onMouseEnter={() => setShowTip(true)}
+            onMouseLeave={() => setShowTip(false)}
+            className="border-none shadow-study bg-white dark:bg-zinc-900 overflow-hidden rounded-[2rem]"
+          >
             <CardHeader className="bg-study-light/30 dark:bg-zinc-800/50">
               <CardTitle className="text-base flex items-center gap-2 text-study-dark dark:text-zinc-100">
                 <Upload size={16} className="text-study-primary" /> Adicionar PDF
