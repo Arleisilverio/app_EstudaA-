@@ -24,56 +24,64 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+    // 1. Busca o documento
     const { data: doc, error: docError } = await supabase
       .from('documents')
       .select('*')
       .eq('id', documentId)
       .single();
 
-    if (docError || !doc) throw new Error("Documento não encontrado.");
+    if (docError || !doc) throw new Error("Documento não encontrado no banco.");
 
+    // 2. Baixa o arquivo
     const { data: fileBlob, error: downloadError } = await supabase.storage
       .from('documents')
       .download(doc.file_path);
 
-    if (downloadError) throw new Error("Erro ao baixar arquivo.");
+    if (downloadError) throw new Error("Erro ao baixar o arquivo do servidor.");
 
     const fileArrayBuffer = await fileBlob.arrayBuffer();
     const uint8Array = new Uint8Array(fileArrayBuffer);
     
     let extractedText = "";
 
+    // 3. Extração de Texto
     if (doc.name.toLowerCase().endsWith('.pdf')) {
       try {
         const pdfExtract = new PDFExtract();
         const data = await pdfExtract.extractBuffer(uint8Array);
-        // Extração limpa de texto por página
+        // Extração robusta preservando espaços e quebras
         extractedText = data.pages
           .map(page => page.content.map(item => item.str).join(" "))
           .join("\n\n");
       } catch (e) {
-        console.error(`[${functionName}] Erro na extração do PDF:`, e);
-        throw new Error("Este PDF parece ser uma imagem ou está protegido. Não foi possível extrair o texto.");
+        throw new Error("Este PDF está protegido ou é uma imagem escaneada sem texto.");
       }
     } else {
       extractedText = new TextDecoder().decode(uint8Array);
     }
 
-    // Limpeza rigorosa: remove caracteres não imprimíveis e excesso de espaços
-    let cleanText = extractedText.replace(/[^\x20-\x7E\u00A0-\u00FF\n\r\t]/g, " ").replace(/\s+/g, " ").trim();
+    // 4. Limpeza Inteligente (Preserva acentos e símbolos jurídicos)
+    let cleanText = extractedText
+      .replace(/\s+/g, " ")
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "") // Remove apenas caracteres de controle lixo
+      .trim();
     
-    if (cleanText.length < 20) {
-      throw new Error("O documento não contém texto legível suficiente para análise (pode ser uma imagem escaneada).");
+    if (cleanText.length < 50) {
+      throw new Error("O documento parece não ter texto legível (pode ser uma imagem).");
     }
 
+    // 5. Divisão em Blocos (Chunks)
     const chunks: string[] = [];
-    const targetSize = 1000;
-    for (let i = 0; i < cleanText.length; i += targetSize) {
-      const chunk = cleanText.substring(i, i + targetSize).trim();
-      if (chunk) chunks.push(chunk);
+    const chunkSize = 1200; // Blocos maiores para melhor contexto
+    const overlap = 200;   // Sobreposição para não perder sentido entre blocos
+    
+    for (let i = 0; i < cleanText.length; i += (chunkSize - overlap)) {
+      chunks.push(cleanText.substring(i, i + chunkSize));
     }
 
-    const batchSize = 50;
+    // 6. Gerar Embeddings (Padrão 1536 para máxima precisão)
+    const batchSize = 20;
     for (let i = 0; i < chunks.length; i += batchSize) {
       const currentBatch = chunks.slice(i, i + batchSize);
       
@@ -83,11 +91,11 @@ serve(async (req) => {
         body: JSON.stringify({ 
           model: "text-embedding-3-small", 
           input: currentBatch,
-          dimensions: 768 
+          dimensions: 1536 
         })
       });
 
-      if (!embRes.ok) throw new Error("Falha na API de Inteligência Artificial.");
+      if (!embRes.ok) throw new Error("Falha na comunicação com o cérebro da IA.");
       const embData = await embRes.json();
 
       const inserts = currentBatch.map((chunk, idx) => ({
@@ -101,6 +109,7 @@ serve(async (req) => {
       if (insertError) throw insertError;
     }
 
+    // 7. Finaliza com Sucesso
     await supabase.from('documents').update({ status: 'ready' }).eq('id', doc.id);
 
     return new Response(JSON.stringify({ success: true }), { 
@@ -108,13 +117,13 @@ serve(async (req) => {
     });
 
   } catch (err: any) {
-    console.error(`[${functionName}] Erro:`, err.message);
+    console.error(`[${functionName}] Erro Crítico:`, err.message);
     if (currentDocId) {
       const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
       await supabase.from('documents').update({ status: 'error' }).eq('id', currentDocId);
     }
     return new Response(JSON.stringify({ error: err.message }), { 
-      status: 200,
+      status: 200, // Retornamos 200 para o app tratar a mensagem de erro amigavelmente
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }
