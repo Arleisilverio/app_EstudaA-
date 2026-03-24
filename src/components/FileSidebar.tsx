@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Trash2, Loader2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Trash2, Loader2, CheckCircle2, Clock, AlertCircle, Info, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -191,24 +191,38 @@ const FileSidebar = () => {
       </div>
 
       {canManage && (
-        <Card className="border-none shadow-study bg-white dark:bg-zinc-900 overflow-hidden rounded-[2rem]">
-          <CardHeader className="bg-study-light/30 dark:bg-zinc-800/50">
-            <CardTitle className="text-base flex items-center gap-2 text-study-dark dark:text-zinc-100">
-              <Upload size={16} className="text-study-primary" /> Adicionar PDF
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <label className="border-2 border-dashed border-study-light dark:border-zinc-800 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 bg-study-light/10 dark:bg-zinc-800/30 hover:bg-study-light/20 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer">
-              <div className="bg-white dark:bg-zinc-800 p-3 rounded-full shadow-sm">
-                {isUploading ? <Loader2 className="animate-spin text-study-primary" /> : <Upload className="text-study-primary" />}
-              </div>
-              <p className="text-[10px] font-bold text-study-dark dark:text-zinc-200 uppercase text-center px-2">
-                {isUploading ? "Processando..." : "Clique para selecionar arquivo"}
+        <div className="space-y-4">
+          {/* Caixa de Aviso de Formato */}
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 flex gap-3 animate-in fade-in slide-in-from-top-2 duration-500">
+            <Info className="text-blue-500 shrink-0" size={20} />
+            <div className="space-y-1">
+              <p className="text-[11px] font-black text-blue-500 uppercase tracking-widest">Dica de Formato</p>
+              <p className="text-[10px] font-bold text-study-medium leading-tight">
+                Use PDFs com <span className="text-study-dark dark:text-white">texto selecionável</span>, DOCX ou TXT. 
+                Evite fotos de livros ou PDFs escaneados, pois a IA não consegue ler imagens.
               </p>
-              <input type="file" className="hidden" onChange={handleUpload} disabled={isUploading} accept=".pdf,.docx,.txt" />
-            </label>
-          </CardContent>
-        </Card>
+            </div>
+          </div>
+
+          <Card className="border-none shadow-study bg-white dark:bg-zinc-900 overflow-hidden rounded-[2rem]">
+            <CardHeader className="bg-study-light/30 dark:bg-zinc-800/50">
+              <CardTitle className="text-base flex items-center gap-2 text-study-dark dark:text-zinc-100">
+                <Upload size={16} className="text-study-primary" /> Adicionar PDF
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <label className="border-2 border-dashed border-study-light dark:border-zinc-800 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 bg-study-light/10 dark:bg-zinc-800/30 hover:bg-study-light/20 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer">
+                <div className="bg-white dark:bg-zinc-800 p-3 rounded-full shadow-sm">
+                  {isUploading ? <Loader2 className="animate-spin text-study-primary" /> : <Upload className="text-study-primary" />}
+                </div>
+                <p className="text-[10px] font-bold text-study-dark dark:text-zinc-200 uppercase text-center px-2">
+                  {isUploading ? "Processando..." : "Clique para selecionar arquivo"}
+                </p>
+                <input type="file" className="hidden" onChange={handleUpload} disabled={isUploading} accept=".pdf,.docx,.txt" />
+              </label>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <Card className="border-none shadow-study bg-white dark:bg-zinc-900 flex-1 min-h-[400px] rounded-[2rem] flex flex-col">
